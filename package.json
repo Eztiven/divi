@@ -1,0 +1,16 @@
+{
+  "name": "divi",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Monitor del dolar BCV vs Binance/paralelo con grafica historica y alertas por Telegram. PWA en Firebase Hosting.",
+  "scripts": {
+    "icons": "node scripts/gen-icons.mjs",
+    "update": "node scripts/update-rates.mjs",
+    "serve": "firebase serve --only hosting",
+    "deploy": "firebase deploy --only hosting"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

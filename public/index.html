@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Divi · Dólar BCV, Binance y Peso</title>
+  <meta name="description" content="Tasa del dólar BCV vs Binance y peso colombiano, con gráfica histórica y porcentaje de ahorro." />
+  <meta name="theme-color" content="#0f9d8e" />
+
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Divi" />
+
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <img src="icons/icon-192.png" alt="Divi" class="brand-logo" />
+      <div>
+        <h1>Divi</h1>
+        <p class="subtitle">Dólar · BCV, Binance y Peso</p>
+      </div>
+    </div>
+    <button id="refreshBtn" class="icon-btn" title="Actualizar" aria-label="Actualizar">⟳</button>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="bolivar" role="tab">🇻🇪 Bolívar</button>
+    <button class="tab" data-tab="peso" role="tab">🇨🇴 Peso</button>
+    <button class="tab" data-tab="alertas" role="tab">🔔 Alertas</button>
+    <button class="tab" data-tab="calc" role="tab">🧮 Calc</button>
+    <button class="tab" data-tab="noticias" role="tab">📰 Noticias</button>
+  </nav>
+
+  <main>
+    <!-- ============ SECCIÓN BOLÍVAR ============ -->
+    <section id="tab-bolivar" class="tab-panel active">
+      <div class="moneda-bar" id="monedaBar">
+        <button class="moneda-btn active" data-moneda="usdt">💵 USDT</button>
+        <button class="moneda-btn" data-moneda="euro">💶 Euro</button>
+        <button class="moneda-btn" data-moneda="ambos">Ambos</button>
+      </div>
+
+      <div class="hero-card">
+        <p class="hero-label" id="heroLabel">Te ahorras comprando al BCV</p>
+        <p class="hero-value" id="ahorroPct">--%</p>
+        <p class="hero-sub" id="ahorroDetalle">Cargando…</p>
+      </div>
+
+      <p class="weekend-note" id="weekendNote" hidden></p>
+
+      <div class="finde-setting">
+        <span>Tasa en fin de semana/feriado:</span>
+        <select id="findeSelect">
+          <option value="habil">la del próximo día hábil (lunes)</option>
+          <option value="viernes">la del viernes (último publicado)</option>
+        </select>
+      </div>
+
+      <div class="semaforo-card na" id="semaforoCard">
+        <span class="sem-dot"></span>
+        <div>
+          <p class="sem-verdict" id="semVerdict">Analizando…</p>
+          <p class="sem-detail" id="semDetail"></p>
+        </div>
+      </div>
+
+      <div class="cards" id="cardsUsd">
+        <div class="rate-card">
+          <p class="rate-name">Dólar BCV</p>
+          <p class="rate-value" id="bcvValue">--</p>
+          <p class="rate-meta">Bs por dólar</p>
+        </div>
+        <div class="rate-card accent">
+          <p class="rate-name">Dólar USDT</p>
+          <p class="rate-value" id="vesVentaValue">--</p>
+          <p class="rate-meta">Compra: <span id="vesCompraValue">--</span></p>
+        </div>
+      </div>
+
+      <div class="cards" id="cardsEur" hidden>
+        <div class="rate-card">
+          <p class="rate-name">Euro BCV</p>
+          <p class="rate-value" id="eurBcvValue">--</p>
+          <p class="rate-meta">Bs por euro</p>
+        </div>
+        <div class="rate-card accent">
+          <p class="rate-name">Euro paralelo</p>
+          <p class="rate-value" id="eurParValue">--</p>
+          <p class="rate-meta">Bs por euro</p>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-head">
+          <h2>📈 Tu ahorro día a día (%)</h2>
+        </div>
+        <div class="range-bar" data-target="ahorro">
+          <button class="range-btn" data-range="1">Día</button>
+          <button class="range-btn active" data-range="7">Semana</button>
+          <button class="range-btn" data-range="30">Mes</button>
+          <button class="range-btn" data-range="365">Año</button>
+          <button class="range-btn" data-range="custom">Personalizar</button>
+        </div>
+        <div class="custom-range" hidden>
+          <label>Desde <input type="date" class="cr-from" /></label>
+          <label>Hasta <input type="date" class="cr-to" /></label>
+        </div>
+        <div class="chart-wrap"><canvas id="ahorroChart"></canvas></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-head">
+          <h2 id="dolarChartTitle">🪙 Valor del dólar BCV en USDT</h2>
+        </div>
+        <div class="range-bar" data-target="dolarbcv">
+          <button class="range-btn" data-range="1">Día</button>
+          <button class="range-btn active" data-range="7">Semana</button>
+          <button class="range-btn" data-range="30">Mes</button>
+          <button class="range-btn" data-range="365">Año</button>
+          <button class="range-btn" data-range="custom">Personalizar</button>
+        </div>
+        <div class="custom-range" hidden>
+          <label>Desde <input type="date" class="cr-from" /></label>
+          <label>Hasta <input type="date" class="cr-to" /></label>
+        </div>
+        <div class="chart-wrap"><canvas id="dolarChart"></canvas></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-head">
+          <h2 id="bolivarChartTitle">💵 Dólar BCV vs Dólar USDT (en Bs)</h2>
+        </div>
+        <div class="range-bar" data-target="bolivar">
+          <button class="range-btn" data-range="1">Día</button>
+          <button class="range-btn active" data-range="7">Semana</button>
+          <button class="range-btn" data-range="30">Mes</button>
+          <button class="range-btn" data-range="365">Año</button>
+          <button class="range-btn" data-range="custom">Personalizar</button>
+        </div>
+        <div class="custom-range" hidden>
+          <label>Desde <input type="date" class="cr-from" /></label>
+          <label>Hasta <input type="date" class="cr-to" /></label>
+        </div>
+        <div class="chart-wrap"><canvas id="bolivarChart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- ============ SECCIÓN PESO ============ -->
+    <section id="tab-peso" class="tab-panel">
+      <div class="hero-card peso">
+        <p class="hero-label">Dólar en Binance (peso colombiano)</p>
+        <p class="hero-value" id="copVentaHero">--</p>
+        <p class="hero-sub" id="copVariacion">Cargando…</p>
+      </div>
+
+      <div class="cards">
+        <div class="rate-card accent">
+          <p class="rate-name">Binance (venta)</p>
+          <p class="rate-value" id="copVentaValue">--</p>
+          <p class="rate-meta">COP por dólar</p>
+        </div>
+        <div class="rate-card">
+          <p class="rate-name">Binance (compra)</p>
+          <p class="rate-value" id="copCompraValue">--</p>
+          <p class="rate-meta">COP por dólar</p>
+        </div>
+      </div>
+
+      <div class="cards">
+        <div class="rate-card subtle">
+          <p class="rate-name">Tasa oficial USD/COP</p>
+          <p class="rate-value small" id="copOficialValue">--</p>
+          <p class="rate-meta">Referencia de mercado</p>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-head">
+          <h2>Histórico USD → COP (Binance)</h2>
+        </div>
+        <div class="range-bar" data-target="peso">
+          <button class="range-btn" data-range="1">Día</button>
+          <button class="range-btn active" data-range="7">Semana</button>
+          <button class="range-btn" data-range="30">Mes</button>
+          <button class="range-btn" data-range="365">Año</button>
+          <button class="range-btn" data-range="custom">Personalizar</button>
+        </div>
+        <div class="custom-range" hidden>
+          <label>Desde <input type="date" class="cr-from" /></label>
+          <label>Hasta <input type="date" class="cr-to" /></label>
+        </div>
+        <div class="chart-wrap"><canvas id="pesoChart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- ============ SECCIÓN ALERTAS ============ -->
+    <section id="tab-alertas" class="tab-panel">
+      <div class="master-card">
+        <div>
+          <p class="rate-name">Notificaciones</p>
+          <p class="rate-meta" id="notifyState">Cargando…</p>
+        </div>
+        <button id="notifyToggle" class="switch" role="switch" aria-checked="true" aria-label="Activar o desactivar notificaciones">
+          <span class="knob"></span>
+        </button>
+      </div>
+
+      <div class="chart-card">
+        <h2>Crear alerta</h2>
+        <p class="muted small">Te aviso por Telegram cuando se cumpla. Avisa una vez y se desactiva.</p>
+
+        <label class="field">
+          <span>Vigilar</span>
+          <select id="alMetric">
+            <option value="venta">Binance venta — Bolívar (Bs)</option>
+            <option value="bcv">BCV oficial (Bs)</option>
+            <option value="compra">Binance compra — Bolívar (Bs)</option>
+            <option value="ahorro">Ahorro BCV vs Binance (%)</option>
+            <option value="copventa">Binance venta — Peso (COP)</option>
+            <option value="copcompra">Binance compra — Peso (COP)</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Condición</span>
+          <select id="alOp">
+            <option value="mayor">sea mayor o igual a (≥)</option>
+            <option value="menor">sea menor o igual a (≤)</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Valor</span>
+          <input id="alValue" type="number" inputmode="decimal" step="any" placeholder="Ej: 750" />
+        </label>
+
+        <button id="alCreate" class="btn-primary">➕ Crear alerta</button>
+        <p class="muted small" id="alHint">Al crear, se abre Telegram con el comando listo: solo dale enviar.</p>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-head">
+          <h2>Mis alertas</h2>
+          <button id="alRefresh" class="icon-btn" title="Refrescar" aria-label="Refrescar">⟳</button>
+        </div>
+        <div id="alertList" class="alert-list"><p class="muted small">Cargando…</p></div>
+      </div>
+    </section>
+
+    <!-- ============ SECCIÓN CALCULADORA ============ -->
+    <section id="tab-calc" class="tab-panel">
+      <div class="chart-card">
+        <h2>Calculadora</h2>
+        <p class="muted small">Escribe en cualquier casilla y las demás se calculan solas (precio Binance).</p>
+
+        <label class="field">
+          <span>💵 Dólares (USD)</span>
+          <input id="calcUsd" type="number" inputmode="decimal" step="any" placeholder="0" value="100" />
+        </label>
+        <label class="field">
+          <span>🇻🇪 Bolívares (Bs) · BCV</span>
+          <input id="calcBs" type="number" inputmode="decimal" step="any" placeholder="0" />
+        </label>
+        <label class="field">
+          <span>🇨🇴 Pesos (COP) · Binance</span>
+          <input id="calcCop" type="number" inputmode="decimal" step="any" placeholder="0" />
+        </label>
+
+        <div id="calcRef" class="calc-results"></div>
+      </div>
+    </section>
+
+    <!-- ============ SECCIÓN NOTICIAS ============ -->
+    <section id="tab-noticias" class="tab-panel">
+      <div class="chart-card">
+        <div class="chart-head">
+          <h2>Noticias del dólar</h2>
+          <button id="newsRefresh" class="icon-btn" title="Refrescar" aria-label="Refrescar">⟳</button>
+        </div>
+        <div id="newsList" class="news-list"><p class="muted small">Cargando…</p></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p>Actualizado: <span id="updatedAt">--</span></p>
+    <p class="muted">Fuentes: BCV (dolarapi) · Binance P2P · open.er-api</p>
+  </footer>
+
+  <div id="toast" class="toast"></div>
+</body>
+</html>

@@ -1,0 +1,47 @@
+name: Actualizar tasas (Divi)
+
+# Corre cada hora y tambien se puede lanzar a mano desde la pestaña Actions.
+on:
+  schedule:
+    - cron: "0 * * * *"   # cada hora en punto (UTC)
+  workflow_dispatch:        # boton "Run workflow" manual
+
+# Permite que la Action haga commit del history.json actualizado.
+permissions:
+  contents: write
+
+# Evita corridas solapadas.
+concurrency:
+  group: divi-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar el repo
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Actualizar tasas y avisar por Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ALERT_THRESHOLD: "0.8"
+        run: node scripts/update-rates.mjs
+
+      - name: Guardar datos si cambiaron
+        run: |
+          if [[ -n "$(git status --porcelain public/data/)" ]]; then
+            git config user.name  "divi-bot"
+            git config user.email "divi-bot@users.noreply.github.com"
+            git add public/data/history.json public/data/alerts.json public/data/news.json
+            git commit -m "chore: actualiza datos $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          else
+            echo "Sin cambios que guardar."
+          fi
