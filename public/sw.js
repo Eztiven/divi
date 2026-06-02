@@ -2,17 +2,17 @@
  * - Cachea el "app shell" para que abra offline y sea instalable.
  * - Los datos (history.json) van "network-first" para mostrar siempre lo mas fresco.
  */
-const CACHE = "divi-v20";
+const CACHE = "divi-v21";
 const SHELL = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
   "./manifest.webmanifest",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png",
-  "./icons/icon-180.png",
-  "./icons/icon-32.png",
+  "./icons/icon-192.png?v=2",
+  "./icons/icon-512.png?v=2",
+  "./icons/icon-180.png?v=2",
+  "./icons/icon-32.png?v=2",
 ];
 
 self.addEventListener("install", (e) => {
