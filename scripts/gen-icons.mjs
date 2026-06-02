@@ -68,9 +68,9 @@ function encodePNG(width, height, rgba) {
 }
 
 // ---- Dibujo del icono ----
-// Tres barras ascendentes sobre gradiente teal -> verde:
-//   barra 1 y 2 blancas (estrella y signo $ encima), barra 3 con los colores de
-//   la bandera de Venezuela (amarillo/azul/rojo) y una estrella encima.
+// Tres barras ascendentes sobre gradiente teal -> verde, cada una con un color
+// de la bandera de Venezuela (amarillo, azul, rojo). Estrella blanca sobre la
+// 1ra y 3ra, signo $ blanco sobre la 2da (despegado de la barra).
 // "Realista": esquinas redondeadas, sombras suaves, gradientes y antialiasing
 // por supersampling (3x3 muestras por pixel).
 
@@ -129,23 +129,21 @@ function drawIcon(size, { maskable = false } = {}) {
   const topC = [16, 185, 168];     // teal claro
   const botC = [6, 95, 70];        // verde oscuro
   const white = [255, 255, 255];
-  const gold = [255, 200, 87];
-  const flagY = [252, 209, 22];    // bandera de Venezuela
-  const flagB = [0, 74, 190];
-  const flagR = [222, 35, 56];
 
   // Geometria en coords normalizadas 0..1
+  // Cada barra lleva un color de la bandera: amarillo, azul, rojo (gradiente
+  // claro arriba -> intenso abajo para darle volumen).
   const baseline = 0.82, hw = 0.085, rad = 0.03;
   const bars = [
-    { cx: 0.24, top: 0.585, flag: false },
-    { cx: 0.50, top: 0.460, flag: false },
-    { cx: 0.76, top: 0.315, flag: true },
+    { cx: 0.24, top: 0.585, light: [255, 219, 70], dark: [241, 186, 8] },    // amarillo
+    { cx: 0.50, top: 0.460, light: [45, 110, 220], dark: [0, 56, 168] },     // azul
+    { cx: 0.76, top: 0.315, light: [238, 70, 84], dark: [191, 22, 43] },     // rojo
   ];
   const stars = [
-    { cx: 0.24, cy: 0.495, R: 0.062 },
-    { cx: 0.76, cy: 0.225, R: 0.062 },
+    { cx: 0.24, cy: 0.490, R: 0.062 },
+    { cx: 0.76, cy: 0.220, R: 0.062 },
   ];
-  const dollar = { cx: 0.50, cy: 0.360, h: 0.155 };
+  const dollar = { cx: 0.50, cy: 0.330, h: 0.150 };
 
   // Para version maskable encogemos el contenido hacia el centro (zona segura):
   // muestreamos en "coordenadas de diseño" ampliando desde el centro.
@@ -173,17 +171,11 @@ function drawIcon(size, { maskable = false } = {}) {
       const sd = sdRoundRect(px, py, b.cx, cy, hw, hh, rad);
       if (sd < 0) {
         const t = clamp01((py - b.top) / (baseline - b.top));
-        let fill;
-        if (b.flag) {
-          fill = t < 1 / 3 ? flagY : t < 2 / 3 ? flagB : flagR;
-          fill = mixC(fill, [0, 0, 0], 0.10 * t);              // leve sombreado abajo
-          fill = mixC(fill, [255, 255, 255], 0.18 * (1 - smooth(0, 0.10, t)));   // brillo arriba
-        } else {
-          fill = mixC(white, [208, 221, 230], t);              // blanco con caida sutil
-        }
+        let fill = mixC(b.light, b.dark, t);                   // gradiente de volumen
+        fill = mixC(fill, [255, 255, 255], 0.20 * (1 - smooth(0, 0.12, t)));   // brillo arriba
         // borde izquierdo iluminado (sensacion de volumen)
         const edge = smooth(0.012, 0.0, px - (b.cx - hw));
-        fill = mixC(fill, [255, 255, 255], 0.25 * edge);
+        fill = mixC(fill, [255, 255, 255], 0.22 * edge);
         c = fill;
       }
     }
@@ -191,7 +183,7 @@ function drawIcon(size, { maskable = false } = {}) {
     for (const s of stars) {
       if (inStar(px, py, s.cx, s.cy, s.R)) c = white;
     }
-    if (inDollar(px, py, dollar.cx, dollar.cy, dollar.h)) c = gold;
+    if (inDollar(px, py, dollar.cx, dollar.cy, dollar.h)) c = white;
 
     return c;
   }
