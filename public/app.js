@@ -27,15 +27,22 @@ let ALERTS = { notify: true, alerts: [] };   // { notify, offset, alerts: [...] 
 let NEWS = { items: [] };  // { updatedAt, items: [...] }
 
 // ---- moneda de referencia (USDT / Euro / ambos) ----
-let MONEDA = localStorage.getItem("divi-moneda") || "usdt";   // 'usdt' | 'euro' | 'ambos'
+let MONEDA = localStorage.getItem("divi-moneda") || "usdt";   // 'usdt' | 'euro'
+if (MONEDA !== "usdt" && MONEDA !== "euro") MONEDA = "usdt";
 const ASSETS = {
   usdt: { bcvKey: "bcv", mktKey: "ves_venta", bcvLabel: "Dólar BCV", mktLabel: "Dólar USDT", unit: "USDT", sym: "$", nombre: "USDT", color: "#2dd4bf", bcvColor: "#ffc857" },
-  euro: { bcvKey: "eur_bcv", mktKey: "eur_paralelo", bcvLabel: "Euro BCV", mktLabel: "Euro paralelo", unit: "€ par", sym: "€", nombre: "Euro", color: "#a78bfa", bcvColor: "#f0abfc" },
 };
-const showU = () => MONEDA === "usdt" || MONEDA === "ambos";
-const showE = () => MONEDA === "euro" || MONEDA === "ambos";
-const primaryAsset = () => (MONEDA === "euro" ? ASSETS.euro : ASSETS.usdt);
-const selectedAssets = () => (MONEDA === "ambos" ? ["usdt", "euro"] : [MONEDA]);
+const esEuro = () => MONEDA === "euro";
+const selectedAssets = () => ["usdt"];   // el euro se maneja aparte (comparación contra el dólar BCV)
+
+// Muestra/oculta secciones según la moneda elegida.
+function applyMonedaView() {
+  const euro = esEuro();
+  $("cardsUsd").hidden = euro;
+  $("cardsEur").hidden = !euro;
+  $("semaforoCard").style.display = euro ? "none" : "";
+  const ca = $("card-ahorro"); if (ca) ca.style.display = euro ? "none" : "";
+}
 function hexA(hex, a) {
   const n = parseInt(hex.slice(1), 16);
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
@@ -94,7 +101,6 @@ function computeEffective() {
   const ov = { ...EFF[li] };
   let manual = false;
   if (OVERRIDES.ves_venta != null) { ov.ves_venta = OVERRIDES.ves_venta; manual = true; }
-  if (OVERRIDES.eur_paralelo != null) { ov.eur_paralelo = OVERRIDES.eur_paralelo; manual = true; }
   ov._manual = manual;
   EFF[li] = ov;
 }
@@ -162,26 +168,32 @@ function renderNumbers() {
   const h = effHistory();
   const last = h[h.length - 1];
 
-  // ---- Bolívar (según la moneda seleccionada) ----
-  const prim = primaryAsset();
-  const pBcv = last[prim.bcvKey], pMkt = last[prim.mktKey];
-  const pct = ahorroPct(pBcv, pMkt);
-  $("ahorroPct").textContent = pct == null ? "--%" : `${fmt(pct)}%`;
-  $("heroLabel").textContent = `Te ahorras comprando al BCV vs ${prim.nombre}`;
-  if (pBcv && pMkt) {
-    $("ahorroDetalle").textContent =
-      `${prim.bcvLabel} ${fmt(pBcv)} · ${prim.mktLabel} ${fmt(pMkt)} → ahorras Bs ${fmt(pMkt - pBcv)}`;
+  // ---- Bolívar / Euro ----
+  if (esEuro()) {
+    const e = last.eur_bcv, d = last.bcv;
+    const ratio = (e && d) ? e / d : null;
+    $("heroLabel").textContent = "1 euro al BCV equivale a";
+    $("ahorroPct").textContent = ratio != null ? `${fmt(ratio, 3)} $` : "--";
+    $("ahorroDetalle").textContent = (e && d)
+      ? `Euro ${fmt(e)} Bs · Dólar ${fmt(d)} Bs · +${fmt(e - d)} Bs por unidad`
+      : "";
+    $("eurBcvValue").textContent = fmt(e);
+    $("eurUsdBcvValue").textContent = fmt(d);
+  } else {
+    const a = ASSETS.usdt;
+    const pBcv = last[a.bcvKey], pMkt = last[a.mktKey];
+    const pct = ahorroPct(pBcv, pMkt);
+    $("ahorroPct").textContent = pct == null ? "--%" : `${fmt(pct)}%`;
+    $("heroLabel").textContent = `Te ahorras comprando al BCV vs ${a.nombre}`;
+    if (pBcv && pMkt) {
+      $("ahorroDetalle").textContent =
+        `${a.bcvLabel} ${fmt(pBcv)} · ${a.mktLabel} ${fmt(pMkt)} → ahorras Bs ${fmt(pMkt - pBcv)}`;
+    }
+    $("bcvValue").textContent = fmt(last.bcv);
+    $("vesVentaValue").textContent = fmt(last.ves_venta);
+    $("vesCompraValue").textContent = fmt(last.ves_compra);
   }
-  // tarjetas USDT
-  $("bcvValue").textContent = fmt(last.bcv);
-  $("vesVentaValue").textContent = fmt(last.ves_venta);
-  $("vesCompraValue").textContent = fmt(last.ves_compra);
-  // tarjetas Euro
-  $("eurBcvValue").textContent = fmt(last.eur_bcv);
-  $("eurParValue").textContent = fmt(last.eur_paralelo);
-  // mostrar/ocultar según selección
-  $("cardsUsd").hidden = !showU();
-  $("cardsEur").hidden = !showE();
+  applyMonedaView();
   // aviso de fin de semana
   const wn = $("weekendNote");
   if (esFinDeSemana()) {
@@ -221,7 +233,8 @@ function renderSemaforo() {
   const card = $("semaforoCard");
   const dotVerdict = $("semVerdict");
   const detail = $("semDetail");
-  const prim = primaryAsset();
+  if (esEuro()) return;   // el semáforo es para el dólar
+  const prim = ASSETS.usdt;
   const h = effHistory();
   const last = h[h.length - 1];
   const cur = ahorroPct(last[prim.bcvKey], last[prim.mktKey]);
@@ -341,51 +354,42 @@ function renderBolivarChart() {
   const data = rangeData("bolivar");
   const days = labelDays("bolivar", data);
   const labels = data.map((r) => labelFor(r.t, days));
-  const assets = selectedAssets();
-  const ds = [];
-  assets.forEach((k) => {
-    const a = ASSETS[k];
-    ds.push({
-      label: a.mktLabel, data: data.map((r) => r[a.mktKey]),
-      borderColor: a.color, backgroundColor: hexA(a.color, 0.12),
-      fill: assets.length === 1, tension: 0.3, pointRadius: 0, borderWidth: 2, _frac: 2,
-    });
-    ds.push({
-      label: a.bcvLabel, data: data.map((r) => r[a.bcvKey]),
-      borderColor: a.bcvColor, backgroundColor: "transparent",
-      fill: false, tension: 0.3, pointRadius: 0, borderWidth: 2, borderDash: [5, 4], _frac: 2,
-    });
-  });
-  // tooltip enriquecido: muestra el equivalente en USDT/€ y la diferencia
+  let ds, afterBody, title;
+
+  if (esEuro()) {
+    // Euro BCV vs Dólar BCV (ambos oficiales)
+    ds = [
+      { label: "Euro BCV", data: data.map((r) => r.eur_bcv), borderColor: "#a78bfa", backgroundColor: hexA("#a78bfa", 0.12), fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2, _frac: 2 },
+      { label: "Dólar BCV", data: data.map((r) => r.bcv), borderColor: "#ffc857", backgroundColor: "transparent", fill: false, tension: 0.3, pointRadius: 0, borderWidth: 2, borderDash: [5, 4], _frac: 2 },
+    ];
+    afterBody = (items) => {
+      const r = data[items[0].dataIndex];
+      if (!r || !r.eur_bcv || !r.bcv) return "";
+      return ["", `1 € = ${fmt(r.eur_bcv / r.bcv, 3)} $`, `Diferencia: ${fmt(r.eur_bcv - r.bcv)} Bs`];
+    };
+    title = "💶 Euro BCV vs Dólar BCV (en Bs)";
+  } else {
+    const a = ASSETS.usdt;
+    ds = [
+      { label: a.mktLabel, data: data.map((r) => r[a.mktKey]), borderColor: a.color, backgroundColor: hexA(a.color, 0.12), fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2, _frac: 2 },
+      { label: a.bcvLabel, data: data.map((r) => r[a.bcvKey]), borderColor: a.bcvColor, backgroundColor: "transparent", fill: false, tension: 0.3, pointRadius: 0, borderWidth: 2, borderDash: [5, 4], _frac: 2 },
+    ];
+    afterBody = (items) => {
+      const r = data[items[0].dataIndex];
+      if (!r || !r[a.bcvKey] || !r[a.mktKey]) return "";
+      const bv = r[a.bcvKey], mk = r[a.mktKey];
+      return ["", `${a.sym}1 BCV = ${fmt(bv / mk, 3)} ${a.unit}`, `Dif: ${fmt(mk - bv)} Bs (${fmt(((mk - bv) / mk) * 100)}%)`];
+    };
+    title = "💵 Dólar BCV vs Dólar USDT (en Bs)";
+  }
+
   const opts = {
     ...chartBase,
     plugins: {
       ...chartBase.plugins,
-      tooltip: {
-        ...chartBase.plugins.tooltip,
-        callbacks: {
-          ...chartBase.plugins.tooltip.callbacks,
-          afterBody: (items) => {
-            const r = data[items[0].dataIndex];
-            if (!r) return "";
-            const lines = [];
-            assets.forEach((k) => {
-              const a = ASSETS[k];
-              const bv = r[a.bcvKey], mk = r[a.mktKey];
-              if (bv && mk) {
-                const val = bv / mk, dif = mk - bv, pct = (dif / mk) * 100;
-                lines.push("", `${a.sym}1 BCV = ${fmt(val, 3)} ${a.unit}`, `Dif: ${fmt(dif)} Bs (${fmt(pct)}%)`);
-              }
-            });
-            return lines;
-          },
-        },
-      },
+      tooltip: { ...chartBase.plugins.tooltip, callbacks: { ...chartBase.plugins.tooltip.callbacks, afterBody } },
     },
   };
-  const title = MONEDA === "euro" ? "💶 Euro BCV vs Euro paralelo (en Bs)"
-    : MONEDA === "ambos" ? "💱 Dólar y Euro · BCV vs mercado (Bs)"
-    : "💵 Dólar BCV vs Dólar USDT (en Bs)";
   const t = $("bolivarChartTitle"); if (t) t.textContent = title;
   const cfg = { type: "line", data: { labels, datasets: ds }, options: opts };
   charts.bolivar?.destroy();
@@ -424,6 +428,7 @@ function renderPesoChart() {
 }
 
 function renderAhorroChart() {
+  if (esEuro()) return;   // el ahorro % es para el dólar
   const data = rangeData("ahorro");
   const days = labelDays("ahorro", data);
   const labels = data.map((r) => labelFor(r.t, days));
@@ -458,19 +463,26 @@ function renderDolarChart() {
   const data = rangeData("dolarbcv");
   const days = labelDays("dolarbcv", data);
   const labels = data.map((r) => labelFor(r.t, days));
-  const assets = selectedAssets();
-  const ds = assets.map((k) => {
-    const a = ASSETS[k];
-    return {
+  let ds, title;
+  if (esEuro()) {
+    // cuántos dólares vale 1 euro al BCV (eur_bcv / usd_bcv)
+    ds = [{
+      label: "1 € en dólares (BCV)",
+      data: data.map((r) => (r.eur_bcv && r.bcv) ? r.eur_bcv / r.bcv : null),
+      borderColor: "#a78bfa", backgroundColor: hexA("#a78bfa", 0.14),
+      fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2, _frac: 3,
+    }];
+    title = "🪙 1 euro en dólares (BCV)";
+  } else {
+    const a = ASSETS.usdt;
+    ds = [{
       label: `${a.sym}1 BCV en ${a.unit}`,
       data: data.map((r) => (r[a.bcvKey] && r[a.mktKey]) ? r[a.bcvKey] / r[a.mktKey] : null),
       borderColor: a.color, backgroundColor: hexA(a.color, 0.14),
-      fill: assets.length === 1, tension: 0.3, pointRadius: 0, borderWidth: 2, _frac: 3,
-    };
-  });
-  const title = MONEDA === "euro" ? "🪙 Valor del euro BCV en € paralelo"
-    : MONEDA === "ambos" ? "🪙 Valor del BCV en el mercado"
-    : "🪙 Valor del dólar BCV en USDT";
+      fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2, _frac: 3,
+    }];
+    title = "🪙 Valor del dólar BCV en USDT";
+  }
   const t = $("dolarChartTitle"); if (t) t.textContent = title;
   const cfg = { type: "line", data: { labels, datasets: ds }, options: chartBase };
   charts.dolarbcv?.destroy();
@@ -816,38 +828,29 @@ function renderNews() {
 // ============ TASAS MANUALES (override) ============
 function refreshOverrideUI() {
   const raw = (DATA && DATA.history) ? DATA.history[DATA.history.length - 1] : null;
-  const u = $("ovUsdt"), e = $("ovEur"), note = $("ovNote");
+  const u = $("ovUsdt"), note = $("ovNote");
   if (!u || !raw) return;
   u.placeholder = "auto: " + fmt(raw.ves_venta);
-  e.placeholder = "auto: " + fmt(raw.eur_paralelo);
   if (OVERRIDES.ves_venta != null && document.activeElement !== u) u.value = toField(OVERRIDES.ves_venta, 2);
-  if (OVERRIDES.eur_paralelo != null && document.activeElement !== e) e.value = toField(OVERRIDES.eur_paralelo, 2);
-  const activos = [];
-  if (OVERRIDES.ves_venta != null) activos.push(`USDT ${fmt(OVERRIDES.ves_venta)}`);
-  if (OVERRIDES.eur_paralelo != null) activos.push(`Euro ${fmt(OVERRIDES.eur_paralelo)}`);
-  note.textContent = activos.length ? `✅ Usando valor manual: ${activos.join(" · ")}` : "";
+  note.textContent = OVERRIDES.ves_venta != null ? `✅ Usando valor manual: USDT ${fmt(OVERRIDES.ves_venta)}` : "";
 }
 
 function setupOverrides() {
-  const u = $("ovUsdt"), e = $("ovEur"), reset = $("ovReset");
+  const u = $("ovUsdt"), reset = $("ovReset");
   if (!u) return;
   const apply = () => {
-    sanitizeField(u); sanitizeField(e);
+    sanitizeField(u);
     const uv = calcNum(u.value);
-    const ev = calcNum(e.value);
     if (uv > 0) OVERRIDES.ves_venta = uv; else delete OVERRIDES.ves_venta;
-    if (ev > 0) OVERRIDES.eur_paralelo = ev; else delete OVERRIDES.eur_paralelo;
     saveOverrides();
     if (DATA) { computeEffective(); renderNumbers(); renderCharts(); renderCalc(); }
     refreshOverrideUI();
   };
   u.addEventListener("input", apply);
-  e.addEventListener("input", apply);
   cursorAlFinal(u);
-  cursorAlFinal(e);
   reset.addEventListener("click", () => {
     OVERRIDES = {}; saveOverrides();
-    u.value = ""; e.value = "";
+    u.value = "";
     if (DATA) { computeEffective(); renderNumbers(); renderCharts(); renderCalc(); }
     refreshOverrideUI();
     toast("Tasas en automático");

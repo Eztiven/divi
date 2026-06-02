@@ -42,9 +42,8 @@
     <!-- ============ SECCIÓN BOLÍVAR ============ -->
     <section id="tab-bolivar" class="tab-panel">
       <div class="moneda-bar" id="monedaBar">
-        <button class="moneda-btn active" data-moneda="usdt">💵 USDT</button>
-        <button class="moneda-btn" data-moneda="euro">💶 Euro</button>
-        <button class="moneda-btn" data-moneda="ambos">Ambos</button>
+        <button class="moneda-btn active" data-moneda="usdt">💵 Dólar (USDT)</button>
+        <button class="moneda-btn" data-moneda="euro">💶 Euro BCV</button>
       </div>
 
       <div class="hero-card">
@@ -85,19 +84,19 @@
       </div>
 
       <div class="cards" id="cardsEur" hidden>
-        <div class="rate-card">
+        <div class="rate-card accent">
           <p class="rate-name">Euro BCV</p>
           <p class="rate-value" id="eurBcvValue">--</p>
           <p class="rate-meta">Bs por euro</p>
         </div>
-        <div class="rate-card accent">
-          <p class="rate-name">Euro paralelo</p>
-          <p class="rate-value" id="eurParValue">--</p>
-          <p class="rate-meta">Bs por euro</p>
+        <div class="rate-card">
+          <p class="rate-name">Dólar BCV</p>
+          <p class="rate-value" id="eurUsdBcvValue">--</p>
+          <p class="rate-meta">Bs por dólar</p>
         </div>
       </div>
 
-      <div class="chart-card">
+      <div class="chart-card" id="card-ahorro">
         <div class="chart-head">
           <h2>📈 Tu ahorro día a día (%)</h2>
         </div>
@@ -115,7 +114,7 @@
         <div class="chart-wrap"><canvas id="ahorroChart"></canvas></div>
       </div>
 
-      <div class="chart-card">
+      <div class="chart-card" id="card-dolar">
         <div class="chart-head">
           <h2 id="dolarChartTitle">🪙 Valor del dólar BCV en USDT</h2>
         </div>
@@ -282,10 +281,6 @@
         <label class="field">
           <span>USDT en Binance (Bs)</span>
           <input id="ovUsdt" type="text" inputmode="decimal" />
-        </label>
-        <label class="field">
-          <span>Euro paralelo (Bs)</span>
-          <input id="ovEur" type="text" inputmode="decimal" />
         </label>
         <button id="ovReset" class="ai-btn">↺ Volver al automático</button>
         <p class="muted small" id="ovNote"></p>

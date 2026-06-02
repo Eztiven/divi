@@ -138,11 +138,10 @@ async function fetchEuro() {
   try {
     const arr = await getJSON("https://ve.dolarapi.com/v1/euros");
     const of = Array.isArray(arr) ? arr.find((x) => x.fuente === "oficial") : null;
-    const pa = Array.isArray(arr) ? arr.find((x) => x.fuente === "paralelo") : null;
-    return { bcv: of?.promedio ?? null, paralelo: pa?.promedio ?? null };
+    return { bcv: of?.promedio ?? null };
   } catch (e) {
     console.warn(`  ! euro falló: ${e.message}`);
-    return { bcv: null, paralelo: null };
+    return { bcv: null };
   }
 }
 
@@ -461,7 +460,6 @@ async function main() {
     cop_compra: cop_compra == null ? null : Number(cop_compra.toFixed(2)),
     cop_oficial: copOficial ?? prev?.cop_oficial ?? null,
     eur_bcv: euro.bcv != null ? Number(euro.bcv.toFixed(4)) : (prev?.eur_bcv ?? null),
-    eur_paralelo: euro.paralelo != null ? Number(euro.paralelo.toFixed(4)) : (prev?.eur_paralelo ?? null),
   };
 
   console.log("  Punto nuevo:", JSON.stringify(entry));
