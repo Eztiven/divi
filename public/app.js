@@ -944,6 +944,21 @@ function tickCountdown() {
   }
 }
 
+// ============ AVISO DE NUEVA VERSIÓN DE LA APP ============
+// El sw.js nuevo se activa solo (skipWaiting); aquí solo avisamos para que el
+// usuario recargue y cargue el app shell actualizado.
+function showUpdateBanner() {
+  if ($("updateBanner")) return;   // ya está visible
+  const bar = document.createElement("div");
+  bar.id = "updateBanner";
+  bar.className = "update-banner";
+  bar.innerHTML =
+    '<span>✨ Hay una nueva versión de Divi</span>' +
+    '<button id="updateBtn">Actualizar</button>';
+  document.body.appendChild(bar);
+  $("updateBtn").addEventListener("click", () => location.reload());
+}
+
 // ============ MODO FIN DE SEMANA / FERIADO ============
 function setupFinde() {
   const sel = $("findeSelect");
@@ -994,8 +1009,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (document.visibilityState === "visible") refresh(false);
   });
 
-  // service worker
+  // service worker + aviso de nueva versión de la app
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
+    navigator.serviceWorker.register("sw.js").then((reg) => {
+      // ¿quedó una versión nueva ya instalada esperando? (la app estuvo cerrada)
+      if (reg.waiting && navigator.serviceWorker.controller) showUpdateBanner();
+      // detecta cuando se descarga una versión nueva del app shell
+      reg.addEventListener("updatefound", () => {
+        const nuevo = reg.installing;
+        if (!nuevo) return;
+        nuevo.addEventListener("statechange", () => {
+          if (nuevo.state === "installed" && navigator.serviceWorker.controller) showUpdateBanner();
+        });
+      });
+      // la PWA abierta no revisa sola: chequea al volver a la app y cada 30 min
+      const checkUpdate = () => reg.update().catch(() => {});
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") checkUpdate();
+      });
+      setInterval(checkUpdate, 30 * 60000);
+    }).catch(() => {});
   }
 });
