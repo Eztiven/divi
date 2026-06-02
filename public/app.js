@@ -679,6 +679,27 @@ const round2 = (n) => Number(n.toFixed(2));
 // Formatea para escribir en una casilla editable: coma decimal, sin separador de miles.
 const toField = (n, frac = 2) => Number(n.toFixed(frac)).toString().replace(".", ",");
 
+// Deja solo dígitos y UN único separador decimal (quita comas/puntos de más).
+function sanitizeNum(v) {
+  v = String(v).replace(/[^\d.,]/g, "");
+  const i = v.search(/[.,]/);
+  if (i === -1) return v;
+  return v.slice(0, i + 1) + v.slice(i + 1).replace(/[.,]/g, "");
+}
+// Pesos (COP): solo dígitos y punto de mil (NO coma, sin decimales).
+const sanitizeCop = (v) => String(v).replace(/[^\d.]/g, "");
+const copNum = (s) => parseInt(String(s).replace(/\D/g, ""), 10) || 0;
+
+// Limpia el campo en vivo conservando la posición del cursor.
+function sanitizeField(el, fn = sanitizeNum) {
+  const clean = fn(el.value);
+  if (clean === el.value) return;
+  const diff = el.value.length - clean.length;
+  const pos = Math.max(0, (el.selectionStart || clean.length) - diff);
+  el.value = clean;
+  try { el.setSelectionRange(pos, pos); } catch (_) {}
+}
+
 // Al enfocar una casilla, deja el cursor al final (facilita borrar/editar).
 function cursorAlFinal(el) {
   el.addEventListener("focus", () => setTimeout(() => {
@@ -701,12 +722,12 @@ function recalc(source) {
   let usd = 0;
   if (source === "usd") usd = calcNum($("calcUsd").value);
   else if (source === "bs") usd = bcv ? calcNum($("calcBs").value) / bcv : 0;   // Bs ↔ BCV
-  else if (source === "cop") usd = cop ? calcNum($("calcCop").value) / cop : 0;  // COP ↔ Binance
+  else if (source === "cop") usd = cop ? copNum($("calcCop").value) / cop : 0;   // COP ↔ Binance
 
   _calcLock = true;
   if (source !== "usd") $("calcUsd").value = usd ? toField(usd, 2) : "";
   if (source !== "bs")  $("calcBs").value  = (usd && bcv) ? toField(usd * bcv, 2) : "";
-  if (source !== "cop") $("calcCop").value = (usd && cop) ? toField(usd * cop, 0) : "";
+  if (source !== "cop") $("calcCop").value = (usd && cop) ? fmt(usd * cop, 0) : "";   // pesos con punto de mil
   _calcLock = false;
 
   const ref = $("calcRef");
@@ -727,10 +748,14 @@ function recalc(source) {
 function renderCalc() { recalc("usd"); }   // refresco al abrir la pestaña / cargar datos
 
 function setupCalc() {
-  $("calcUsd").addEventListener("input", () => recalc("usd"));
-  $("calcBs").addEventListener("input", () => recalc("bs"));
-  $("calcCop").addEventListener("input", () => recalc("cop"));
-  ["calcUsd", "calcBs", "calcCop"].forEach((id) => cursorAlFinal($(id)));
+  const wire = (id, src, fn) => {
+    const el = $(id);
+    el.addEventListener("input", () => { sanitizeField(el, fn); recalc(src); });
+    cursorAlFinal(el);
+  };
+  wire("calcUsd", "usd", sanitizeNum);
+  wire("calcBs", "bs", sanitizeNum);
+  wire("calcCop", "cop", sanitizeCop);   // pesos: solo dígitos y punto de mil
 }
 
 // ============ NOTICIAS ============
@@ -807,6 +832,7 @@ function setupOverrides() {
   const u = $("ovUsdt"), e = $("ovEur"), reset = $("ovReset");
   if (!u) return;
   const apply = () => {
+    sanitizeField(u); sanitizeField(e);
     const uv = calcNum(u.value);
     const ev = calcNum(e.value);
     if (uv > 0) OVERRIDES.ves_venta = uv; else delete OVERRIDES.ves_venta;
