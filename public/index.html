@@ -31,16 +31,16 @@
   </header>
 
   <nav class="tabs" role="tablist">
-    <button class="tab active" data-tab="bolivar" role="tab">🇻🇪 Bolívar</button>
+    <button class="tab active" data-tab="calc" role="tab">🧮 Calculadora</button>
+    <button class="tab" data-tab="bolivar" role="tab">🇻🇪 Bolívar</button>
     <button class="tab" data-tab="peso" role="tab">🇨🇴 Peso</button>
     <button class="tab" data-tab="alertas" role="tab">🔔 Alertas</button>
-    <button class="tab" data-tab="calc" role="tab">🧮 Calc</button>
     <button class="tab" data-tab="noticias" role="tab">📰 Noticias</button>
   </nav>
 
   <main>
     <!-- ============ SECCIÓN BOLÍVAR ============ -->
-    <section id="tab-bolivar" class="tab-panel active">
+    <section id="tab-bolivar" class="tab-panel">
       <div class="moneda-bar" id="monedaBar">
         <button class="moneda-btn active" data-moneda="usdt">💵 USDT</button>
         <button class="moneda-btn" data-moneda="euro">💶 Euro</button>
@@ -255,7 +255,7 @@
     </section>
 
     <!-- ============ SECCIÓN CALCULADORA ============ -->
-    <section id="tab-calc" class="tab-panel">
+    <section id="tab-calc" class="tab-panel active">
       <div class="chart-card">
         <h2>Calculadora</h2>
         <p class="muted small">Escribe en cualquier casilla y las demás se calculan solas (precio Binance).</p>

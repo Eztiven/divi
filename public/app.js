@@ -7,7 +7,7 @@
 // history.json en GitHub para que la app lea los datos frescos directo del repo.
 // Ej: "https://raw.githubusercontent.com/TU_USUARIO/divi/main/public/data/history.json"
 // Dejalo en "" si el cron despliega a Firebase en cada corrida (entonces usa el archivo local).
-const REMOTE_DATA_URL = "https://raw.githubusercontent.com/bxtiven/divi/main/public/data/history.json";
+const REMOTE_DATA_URL = "https://raw.githubusercontent.com/Eztiven/divi/main/public/data/history.json";
 const LOCAL_DATA_URL = "./data/history.json";
 
 // Usuario de tu bot de Telegram (sin @). Permite que el botón "Crear alerta" abra
