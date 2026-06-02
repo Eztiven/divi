@@ -863,73 +863,68 @@ function setupOverrides() {
 
 // ============ CONTADOR DE PRÓXIMA ACTUALIZACIÓN ============
 // cron-job.org dispara el workflow a los minutos 0, 15, 30 y 45 de cada hora
-// (UTC). Apuntamos al minuto siguiente y al llegar a 0 el contador entra en modo
-// "actualizando": reintenta hasta que el commit nuevo se propague de verdad.
-const UPDATE_MINUTES = [1, 16, 31, 46];
+// (UTC). El contador apunta a la LLEGADA estimada del dato (corrida + ~3,5 min de
+// commit y propagación). Desde que dispara el cron se sondea en silencio por
+// detrás: apenas aterriza el dato nuevo, el reloj salta a la próxima corrida sin
+// quedarse pegado en "actualizando".
+const CRON_MINUTES = [0, 15, 30, 45];
+const ARRIVAL_MS = 3.5 * 60000;   // retraso típico: corrida + commit + CDN
 
-function nextUpdateTime() {
+function nextCronTime() {
   const now = Date.now();
-  for (const m of UPDATE_MINUTES) {
+  for (const m of CRON_MINUTES) {
     const next = new Date();
     next.setUTCMinutes(m, 0, 0);
     if (next.getTime() > now) return next.getTime();
   }
   // ya pasaron todas las de esta hora: la primera de la próxima
   const next = new Date();
-  next.setUTCMinutes(UPDATE_MINUTES[0], 0, 0);
+  next.setUTCMinutes(CRON_MINUTES[0], 0, 0);
   next.setUTCHours(next.getUTCHours() + 1);
   return next.getTime();
 }
 
-let _nextTarget = 0;
 let _lastAutoRefresh = 0;
-let _syncing = false;       // esperando que el dato nuevo llegue tras la corrida
-let _syncStart = 0;
-let _prevUpdatedAt = "";
+let _esperando = false;   // hay una corrida reciente cuyo dato aún no llega
 
 function tickCountdown() {
   const el = $("nextUpdate");
   if (!el) return;
-  if (!_nextTarget) _nextTarget = nextUpdateTime();
+  const now = Date.now();
+  const nextCron = nextCronTime();
+  const lastCron = nextCron - 15 * 60000;   // la corrida más reciente
+  const upTs = DATA ? new Date(DATA.updatedAt || 0).getTime() : 0;
 
-  const upIso = (DATA && DATA.updatedAt) || "";
-  let ms = _nextTarget - Date.now();
+  // ¿el dato de la última corrida ya llegó?
+  const fresco = upTs >= lastCron;
+  const enVentana = now - lastCron <= 6 * 60000;   // espera razonable por corrida
 
-  if (ms <= 0 && !_syncing) {
-    // llegó la hora: entra en modo "esperando dato nuevo"
-    _syncing = true;
-    _syncStart = Date.now();
-    _prevUpdatedAt = upIso;
-    _lastAutoRefresh = Date.now();
-    refresh(false);
-  }
-
-  if (_syncing) {
-    const llegoNuevo = upIso && upIso !== _prevUpdatedAt;
-    const seRindio = Date.now() - _syncStart > 5 * 60000;   // commit/CDN tardan a veces
-    if (llegoNuevo || seRindio) {
-      _syncing = false;
-      _nextTarget = nextUpdateTime();
-      ms = _nextTarget - Date.now();
-      if (llegoNuevo) toast("Tasas actualizadas ✅");
-    } else {
-      // reintenta cada 20 s hasta que el commit se propague por raw.githubusercontent
-      if (Date.now() - _lastAutoRefresh > 20000) {
-        _lastAutoRefresh = Date.now();
-        refresh(false);
-      }
-      el.textContent = "🔄 Actualizando datos…";
-      return;
+  if (!fresco && enVentana) {
+    // corrida en curso: sondea en silencio cada 25 s hasta que aterrice el commit
+    _esperando = true;
+    if (now - _lastAutoRefresh > 25000) {
+      _lastAutoRefresh = now;
+      refresh(false);
     }
+  } else {
+    if (_esperando && fresco) toast("Tasas actualizadas ✅");
+    _esperando = false;
   }
 
-  const m = Math.floor(ms / 60000), s = Math.floor((ms % 60000) / 1000);
-  el.textContent = `⏳ Próxima actualización en ${m}:${String(s).padStart(2, "0")} min`;
+  // el reloj apunta a la llegada estimada del dato (corrida + ~3,5 min); solo si
+  // el dato se retrasa más de eso se muestra "actualizando"
+  const target = ((fresco || !enVentana) ? nextCron : lastCron) + ARRIVAL_MS;
+  const ms = target - now;
+  if (ms > 0) {
+    const m = Math.floor(ms / 60000), s = Math.floor((ms % 60000) / 1000);
+    el.textContent = `⏳ Próxima actualización en ${m}:${String(s).padStart(2, "0")} min`;
+  } else {
+    el.textContent = "🔄 Actualizando datos…";
+  }
 
   // Con corridas cada 15 min, si los datos llevan >50 min sin cambiar es que
   // se saltaron varias: avisa y reintenta la carga cada 3 min hasta ponerse al día.
-  const upTs = DATA && new Date(DATA.updatedAt || 0).getTime();
-  const stale = upTs && Date.now() - upTs > 50 * 60000;
+  const stale = upTs && now - upTs > 50 * 60000;
   const note = $("staleNote");
   if (note) {
     note.hidden = !stale;
