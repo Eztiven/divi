@@ -577,6 +577,7 @@ async function refresh(showToast = true) {
     computeEffective();
     renderNumbers();
     renderCharts();
+    renderCalc();        // la calculadora también usa la tasa nueva
     refreshOverrideUI();
     if (showToast) toast("Datos actualizados");
   } else {
@@ -758,12 +759,13 @@ function recalc(source) {
   ref.innerHTML = rows;
 }
 
-function renderCalc() { recalc("usd"); }   // refresco al abrir la pestaña / cargar datos
+let _calcSource = "usd";   // última casilla que editó el usuario
+function renderCalc() { recalc(_calcSource); }   // refresco al abrir la pestaña / cargar datos
 
 function setupCalc() {
   const wire = (id, src, fn) => {
     const el = $(id);
-    el.addEventListener("input", () => { sanitizeField(el, fn); recalc(src); });
+    el.addEventListener("input", () => { _calcSource = src; sanitizeField(el, fn); recalc(src); });
     cursorAlFinal(el);
   };
   wire("calcUsd", "usd", sanitizeNum);
@@ -860,9 +862,9 @@ function setupOverrides() {
 
 // ============ CONTADOR DE PRÓXIMA ACTUALIZACIÓN ============
 // cron-job.org dispara el workflow a los minutos 0, 15, 30 y 45 de cada hora
-// (UTC); entre la corrida, el commit y la propagación de raw.githubusercontent
-// pasan ~3 min, así que apuntamos a los minutos 3, 18, 33 y 48.
-const UPDATE_MINUTES = [3, 18, 33, 48];
+// (UTC). Apuntamos al minuto siguiente y al llegar a 0 el contador entra en modo
+// "actualizando": reintenta hasta que el commit nuevo se propague de verdad.
+const UPDATE_MINUTES = [1, 16, 31, 46];
 
 function nextUpdateTime() {
   const now = Date.now();
@@ -880,20 +882,46 @@ function nextUpdateTime() {
 
 let _nextTarget = 0;
 let _lastAutoRefresh = 0;
+let _syncing = false;       // esperando que el dato nuevo llegue tras la corrida
+let _syncStart = 0;
+let _prevUpdatedAt = "";
 
 function tickCountdown() {
   const el = $("nextUpdate");
   if (!el) return;
   if (!_nextTarget) _nextTarget = nextUpdateTime();
 
+  const upIso = (DATA && DATA.updatedAt) || "";
   let ms = _nextTarget - Date.now();
-  if (ms <= 0) {
-    // llegó la hora: recarga datos y apunta a la próxima corrida
-    _nextTarget = nextUpdateTime();
-    ms = _nextTarget - Date.now();
+
+  if (ms <= 0 && !_syncing) {
+    // llegó la hora: entra en modo "esperando dato nuevo"
+    _syncing = true;
+    _syncStart = Date.now();
+    _prevUpdatedAt = upIso;
     _lastAutoRefresh = Date.now();
     refresh(false);
   }
+
+  if (_syncing) {
+    const llegoNuevo = upIso && upIso !== _prevUpdatedAt;
+    const seRindio = Date.now() - _syncStart > 5 * 60000;   // commit/CDN tardan a veces
+    if (llegoNuevo || seRindio) {
+      _syncing = false;
+      _nextTarget = nextUpdateTime();
+      ms = _nextTarget - Date.now();
+      if (llegoNuevo) toast("Tasas actualizadas ✅");
+    } else {
+      // reintenta cada 20 s hasta que el commit se propague por raw.githubusercontent
+      if (Date.now() - _lastAutoRefresh > 20000) {
+        _lastAutoRefresh = Date.now();
+        refresh(false);
+      }
+      el.textContent = "🔄 Actualizando datos…";
+      return;
+    }
+  }
+
   const m = Math.floor(ms / 60000), s = Math.floor((ms % 60000) / 1000);
   el.textContent = `⏳ Próxima actualización en ${m}:${String(s).padStart(2, "0")} min`;
 
