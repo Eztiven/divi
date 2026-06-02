@@ -225,7 +225,8 @@ function renderNumbers() {
   renderSemaforo();
 
   // ---- Footer ----
-  $("updatedAt").textContent = formatStamp(DATA.updatedAt || last.t);
+  const upIso = DATA.updatedAt || last.t;
+  $("updatedAt").textContent = `${formatStamp(upIso)} (${timeAgo(new Date(upIso).getTime())})`;
 }
 
 // ============ SEMÁFORO: ¿buen día para comprar? ============
@@ -857,6 +858,63 @@ function setupOverrides() {
   });
 }
 
+// ============ CONTADOR DE PRÓXIMA ACTUALIZACIÓN ============
+// El cron corre a los minutos 7, 27 y 47 de cada hora (UTC); entre la corrida,
+// el commit y la propagación de raw.githubusercontent pasan ~3 min, así que
+// apuntamos a los minutos 10, 30 y 50.
+const UPDATE_MINUTES = [10, 30, 50];
+
+function nextUpdateTime() {
+  const now = Date.now();
+  for (const m of UPDATE_MINUTES) {
+    const next = new Date();
+    next.setUTCMinutes(m, 0, 0);
+    if (next.getTime() > now) return next.getTime();
+  }
+  // ya pasaron todas las de esta hora: la primera de la próxima
+  const next = new Date();
+  next.setUTCMinutes(UPDATE_MINUTES[0], 0, 0);
+  next.setUTCHours(next.getUTCHours() + 1);
+  return next.getTime();
+}
+
+let _nextTarget = 0;
+let _lastAutoRefresh = 0;
+
+function tickCountdown() {
+  const el = $("nextUpdate");
+  if (!el) return;
+  if (!_nextTarget) _nextTarget = nextUpdateTime();
+
+  let ms = _nextTarget - Date.now();
+  if (ms <= 0) {
+    // llegó la hora: recarga datos y apunta a la próxima corrida
+    _nextTarget = nextUpdateTime();
+    ms = _nextTarget - Date.now();
+    _lastAutoRefresh = Date.now();
+    refresh(false);
+  }
+  const m = Math.floor(ms / 60000), s = Math.floor((ms % 60000) / 1000);
+  el.textContent = `⏳ Próxima actualización en ${m}:${String(s).padStart(2, "0")} min`;
+
+  // Con corridas cada 20 min, si los datos llevan >50 min sin cambiar es que
+  // GitHub saltó varias: avisa y reintenta la carga cada 3 min hasta ponerse al día.
+  const upTs = DATA && new Date(DATA.updatedAt || 0).getTime();
+  const stale = upTs && Date.now() - upTs > 50 * 60000;
+  const note = $("staleNote");
+  if (note) {
+    note.hidden = !stale;
+    if (stale) {
+      note.textContent = `⚠️ Los datos tienen ${timeAgo(upTs).replace("hace ", "")} de retraso ` +
+        `(GitHub a veces salta corridas del cron). Reintentando automáticamente…`;
+      if (Date.now() - _lastAutoRefresh > 3 * 60000) {
+        _lastAutoRefresh = Date.now();
+        refresh(false);
+      }
+    }
+  }
+}
+
 // ============ MODO FIN DE SEMANA / FERIADO ============
 function setupFinde() {
   const sel = $("findeSelect");
@@ -897,6 +955,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   await refresh(false);
   renderCalc();
   await loadAlerts();
+
+  // contador de próxima actualización (tic cada segundo)
+  tickCountdown();
+  setInterval(tickCountdown, 1000);
 
   // refresca al volver a la app
   document.addEventListener("visibilitychange", () => {

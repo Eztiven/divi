@@ -3,7 +3,10 @@ name: Actualizar tasas (Divi)
 # Corre cada hora y tambien se puede lanzar a mano desde la pestaña Actions.
 on:
   schedule:
-    - cron: "0 * * * *"   # cada hora en punto (UTC)
+    # GitHub no reintenta corridas saltadas, así que programamos 3 por hora:
+    # si salta una, la siguiente llega máximo 20 min después. Evitamos el
+    # minuto 0 (el más congestionado, donde más corridas se pierden).
+    - cron: "7,27,47 * * * *"   # minutos 7, 27 y 47 de cada hora (UTC)
   workflow_dispatch:        # boton "Run workflow" manual
 
 # Permite que la Action haga commit del history.json actualizado.

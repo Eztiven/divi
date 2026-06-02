@@ -157,6 +157,8 @@ body {
 /* ---------- Footer ---------- */
 .app-footer { text-align: center; margin-top: 22px; font-size: 12px; color: var(--text-dim); }
 .app-footer .muted { opacity: .7; margin-top: 4px; font-size: 11px; }
+.app-footer .next-update { margin-top: 4px; font-variant-numeric: tabular-nums; }
+.app-footer .stale-note { margin-top: 4px; font-size: 11px; color: #ffc857; }
 
 .up { color: var(--green); }
 .down { color: var(--red); }
