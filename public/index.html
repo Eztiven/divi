@@ -238,7 +238,7 @@
 
         <label class="field">
           <span>Valor</span>
-          <input id="alValue" type="number" inputmode="decimal" step="any" placeholder="Ej: 750" />
+          <input id="alValue" type="text" inputmode="decimal" placeholder="Ej: 750" />
         </label>
 
         <button id="alCreate" class="btn-primary">➕ Crear alerta</button>
@@ -262,15 +262,15 @@
 
         <label class="field">
           <span>💵 Dólares (USD)</span>
-          <input id="calcUsd" type="number" inputmode="decimal" step="any" placeholder="0" value="1" />
+          <input id="calcUsd" type="text" inputmode="decimal" placeholder="0" value="1" />
         </label>
         <label class="field">
           <span>🇻🇪 Bolívares (Bs) · BCV</span>
-          <input id="calcBs" type="number" inputmode="decimal" step="any" placeholder="0" />
+          <input id="calcBs" type="text" inputmode="decimal" placeholder="0" />
         </label>
         <label class="field">
           <span>🇨🇴 Pesos (COP) · Binance</span>
-          <input id="calcCop" type="number" inputmode="decimal" step="any" placeholder="0" />
+          <input id="calcCop" type="text" inputmode="decimal" placeholder="0" />
         </label>
 
         <div id="calcRef" class="calc-results"></div>
@@ -281,11 +281,11 @@
         <p class="muted small">Pon el valor exacto que ves en Binance. Si lo dejas vacío, se usa el automático del sistema.</p>
         <label class="field">
           <span>USDT en Binance (Bs)</span>
-          <input id="ovUsdt" type="number" inputmode="decimal" step="any" />
+          <input id="ovUsdt" type="text" inputmode="decimal" />
         </label>
         <label class="field">
           <span>Euro paralelo (Bs)</span>
-          <input id="ovEur" type="number" inputmode="decimal" step="any" />
+          <input id="ovEur" type="text" inputmode="decimal" />
         </label>
         <button id="ovReset" class="ai-btn">↺ Volver al automático</button>
         <p class="muted small" id="ovNote"></p>

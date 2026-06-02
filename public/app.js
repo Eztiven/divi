@@ -666,8 +666,25 @@ function setupAlerts() {
 
 // ============ CALCULADORA (casillas enlazadas) ============
 let _calcLock = false;   // evita bucles al rellenar las casillas
-const calcNum = (s) => parseFloat(String(s).replace(",", ".")) || 0;
+// Acepta "554,43", "554.43" y "55.442,58" (formato venezolano con miles).
+function calcNum(s) {
+  s = String(s).trim().replace(/\s/g, "");
+  if (!s) return 0;
+  if (s.includes(",") && s.includes(".")) s = s.replace(/\./g, "").replace(",", ".");
+  else if (s.includes(",")) s = s.replace(",", ".");
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : 0;
+}
 const round2 = (n) => Number(n.toFixed(2));
+// Formatea para escribir en una casilla editable: coma decimal, sin separador de miles.
+const toField = (n, frac = 2) => Number(n.toFixed(frac)).toString().replace(".", ",");
+
+// Al enfocar una casilla, deja el cursor al final (facilita borrar/editar).
+function cursorAlFinal(el) {
+  el.addEventListener("focus", () => setTimeout(() => {
+    const v = el.value; try { el.setSelectionRange(v.length, v.length); } catch (_) {}
+  }, 0));
+}
 const calcRow = (label, value, unit, frac = 2) =>
   `<div class="calc-row"><span class="cr-label">${label}</span>` +
   `<span class="cr-value">${fmt(value, frac)}<small>${unit}</small></span></div>`;
@@ -687,9 +704,9 @@ function recalc(source) {
   else if (source === "cop") usd = cop ? calcNum($("calcCop").value) / cop : 0;  // COP ↔ Binance
 
   _calcLock = true;
-  if (source !== "usd") $("calcUsd").value = usd ? round2(usd) : "";
-  if (source !== "bs")  $("calcBs").value  = (usd && bcv) ? round2(usd * bcv) : "";
-  if (source !== "cop") $("calcCop").value = (usd && cop) ? Math.round(usd * cop) : "";
+  if (source !== "usd") $("calcUsd").value = usd ? toField(usd, 2) : "";
+  if (source !== "bs")  $("calcBs").value  = (usd && bcv) ? toField(usd * bcv, 2) : "";
+  if (source !== "cop") $("calcCop").value = (usd && cop) ? toField(usd * cop, 0) : "";
   _calcLock = false;
 
   const ref = $("calcRef");
@@ -713,6 +730,7 @@ function setupCalc() {
   $("calcUsd").addEventListener("input", () => recalc("usd"));
   $("calcBs").addEventListener("input", () => recalc("bs"));
   $("calcCop").addEventListener("input", () => recalc("cop"));
+  ["calcUsd", "calcBs", "calcCop"].forEach((id) => cursorAlFinal($(id)));
 }
 
 // ============ NOTICIAS ============
@@ -777,8 +795,8 @@ function refreshOverrideUI() {
   if (!u || !raw) return;
   u.placeholder = "auto: " + fmt(raw.ves_venta);
   e.placeholder = "auto: " + fmt(raw.eur_paralelo);
-  if (OVERRIDES.ves_venta != null && document.activeElement !== u) u.value = OVERRIDES.ves_venta;
-  if (OVERRIDES.eur_paralelo != null && document.activeElement !== e) e.value = OVERRIDES.eur_paralelo;
+  if (OVERRIDES.ves_venta != null && document.activeElement !== u) u.value = toField(OVERRIDES.ves_venta, 2);
+  if (OVERRIDES.eur_paralelo != null && document.activeElement !== e) e.value = toField(OVERRIDES.eur_paralelo, 2);
   const activos = [];
   if (OVERRIDES.ves_venta != null) activos.push(`USDT ${fmt(OVERRIDES.ves_venta)}`);
   if (OVERRIDES.eur_paralelo != null) activos.push(`Euro ${fmt(OVERRIDES.eur_paralelo)}`);
@@ -789,16 +807,18 @@ function setupOverrides() {
   const u = $("ovUsdt"), e = $("ovEur"), reset = $("ovReset");
   if (!u) return;
   const apply = () => {
-    const uv = parseFloat(String(u.value).replace(",", "."));
-    const ev = parseFloat(String(e.value).replace(",", "."));
-    if (Number.isFinite(uv) && uv > 0) OVERRIDES.ves_venta = uv; else delete OVERRIDES.ves_venta;
-    if (Number.isFinite(ev) && ev > 0) OVERRIDES.eur_paralelo = ev; else delete OVERRIDES.eur_paralelo;
+    const uv = calcNum(u.value);
+    const ev = calcNum(e.value);
+    if (uv > 0) OVERRIDES.ves_venta = uv; else delete OVERRIDES.ves_venta;
+    if (ev > 0) OVERRIDES.eur_paralelo = ev; else delete OVERRIDES.eur_paralelo;
     saveOverrides();
     if (DATA) { computeEffective(); renderNumbers(); renderCharts(); renderCalc(); }
     refreshOverrideUI();
   };
   u.addEventListener("input", apply);
   e.addEventListener("input", apply);
+  cursorAlFinal(u);
+  cursorAlFinal(e);
   reset.addEventListener("click", () => {
     OVERRIDES = {}; saveOverrides();
     u.value = ""; e.value = "";
