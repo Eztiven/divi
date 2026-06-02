@@ -859,10 +859,10 @@ function setupOverrides() {
 }
 
 // ============ CONTADOR DE PRÓXIMA ACTUALIZACIÓN ============
-// El cron corre a los minutos 7, 27 y 47 de cada hora (UTC); entre la corrida,
-// el commit y la propagación de raw.githubusercontent pasan ~3 min, así que
-// apuntamos a los minutos 10, 30 y 50.
-const UPDATE_MINUTES = [10, 30, 50];
+// cron-job.org dispara el workflow a los minutos 0, 15, 30 y 45 de cada hora
+// (UTC); entre la corrida, el commit y la propagación de raw.githubusercontent
+// pasan ~3 min, así que apuntamos a los minutos 3, 18, 33 y 48.
+const UPDATE_MINUTES = [3, 18, 33, 48];
 
 function nextUpdateTime() {
   const now = Date.now();
@@ -897,8 +897,8 @@ function tickCountdown() {
   const m = Math.floor(ms / 60000), s = Math.floor((ms % 60000) / 1000);
   el.textContent = `⏳ Próxima actualización en ${m}:${String(s).padStart(2, "0")} min`;
 
-  // Con corridas cada 20 min, si los datos llevan >50 min sin cambiar es que
-  // GitHub saltó varias: avisa y reintenta la carga cada 3 min hasta ponerse al día.
+  // Con corridas cada 15 min, si los datos llevan >50 min sin cambiar es que
+  // se saltaron varias: avisa y reintenta la carga cada 3 min hasta ponerse al día.
   const upTs = DATA && new Date(DATA.updatedAt || 0).getTime();
   const stale = upTs && Date.now() - upTs > 50 * 60000;
   const note = $("staleNote");
