@@ -51,6 +51,11 @@ function esFinDeSemana() {
 let MODO_FINDE = localStorage.getItem("divi-finde") || "habil";   // 'habil' | 'viernes'
 let EFF = [];   // historial con la tasa BCV "aplicable" ya resuelta
 
+// valores que el usuario puede fijar a mano (anulan el automático en el punto actual)
+let OVERRIDES = {};
+try { OVERRIDES = JSON.parse(localStorage.getItem("divi-overrides") || "{}"); } catch { OVERRIDES = {}; }
+function saveOverrides() { localStorage.setItem("divi-overrides", JSON.stringify(OVERRIDES)); }
+
 function caracasDate(iso) { return new Date(new Date(iso).getTime() - 4 * 3600 * 1000); }
 function caracasDay(iso) { return caracasDate(iso).toISOString().slice(0, 10); }
 function caracasWeekday(iso) { return caracasDate(iso).getUTCDay(); }
@@ -67,19 +72,31 @@ function isCarried(r) {
 //  'viernes' = se queda con la última publicada (lo que muestra el BCV ese día).
 function computeEffective() {
   const h = (DATA && DATA.history) ? DATA.history : [];
-  if (MODO_FINDE === "viernes" || !h.length) { EFF = h.slice(); return; }
-  EFF = new Array(h.length);
-  const lastBiz = { bcv: null, eur_bcv: null };
-  for (let i = h.length - 1; i >= 0; i--) {   // recorre del futuro al pasado
-    const r = h[i];
-    const o = { ...r };
-    const carried = isCarried(r);
-    ["bcv", "eur_bcv"].forEach((key) => {
-      if (!carried && r[key] != null) lastBiz[key] = r[key];
-      if (carried && lastBiz[key] != null) o[key] = lastBiz[key];
-    });
-    EFF[i] = o;
+  if (!h.length) { EFF = []; return; }
+  if (MODO_FINDE === "viernes") {
+    EFF = h.slice();
+  } else {
+    EFF = new Array(h.length);
+    const lastBiz = { bcv: null, eur_bcv: null };
+    for (let i = h.length - 1; i >= 0; i--) {   // recorre del futuro al pasado
+      const r = h[i];
+      const o = { ...r };
+      const carried = isCarried(r);
+      ["bcv", "eur_bcv"].forEach((key) => {
+        if (!carried && r[key] != null) lastBiz[key] = r[key];
+        if (carried && lastBiz[key] != null) o[key] = lastBiz[key];
+      });
+      EFF[i] = o;
+    }
   }
+  // valores manuales: anulan el automático SOLO en el punto actual (el último)
+  const li = EFF.length - 1;
+  const ov = { ...EFF[li] };
+  let manual = false;
+  if (OVERRIDES.ves_venta != null) { ov.ves_venta = OVERRIDES.ves_venta; manual = true; }
+  if (OVERRIDES.eur_paralelo != null) { ov.eur_paralelo = OVERRIDES.eur_paralelo; manual = true; }
+  ov._manual = manual;
+  EFF[li] = ov;
 }
 const effHistory = () => (EFF.length ? EFF : ((DATA && DATA.history) || []));
 const ranges = { bolivar: 7, peso: 7, ahorro: 7, dolarbcv: 7 };   // dias (o "custom") por grafica
@@ -547,6 +564,7 @@ async function refresh(showToast = true) {
     computeEffective();
     renderNumbers();
     renderCharts();
+    refreshOverrideUI();
     if (showToast) toast("Datos actualizados");
   } else {
     toast("No se pudieron cargar los datos");
@@ -752,6 +770,44 @@ function renderNews() {
   });
 }
 
+// ============ TASAS MANUALES (override) ============
+function refreshOverrideUI() {
+  const raw = (DATA && DATA.history) ? DATA.history[DATA.history.length - 1] : null;
+  const u = $("ovUsdt"), e = $("ovEur"), note = $("ovNote");
+  if (!u || !raw) return;
+  u.placeholder = "auto: " + fmt(raw.ves_venta);
+  e.placeholder = "auto: " + fmt(raw.eur_paralelo);
+  if (OVERRIDES.ves_venta != null && document.activeElement !== u) u.value = OVERRIDES.ves_venta;
+  if (OVERRIDES.eur_paralelo != null && document.activeElement !== e) e.value = OVERRIDES.eur_paralelo;
+  const activos = [];
+  if (OVERRIDES.ves_venta != null) activos.push(`USDT ${fmt(OVERRIDES.ves_venta)}`);
+  if (OVERRIDES.eur_paralelo != null) activos.push(`Euro ${fmt(OVERRIDES.eur_paralelo)}`);
+  note.textContent = activos.length ? `✅ Usando valor manual: ${activos.join(" · ")}` : "";
+}
+
+function setupOverrides() {
+  const u = $("ovUsdt"), e = $("ovEur"), reset = $("ovReset");
+  if (!u) return;
+  const apply = () => {
+    const uv = parseFloat(String(u.value).replace(",", "."));
+    const ev = parseFloat(String(e.value).replace(",", "."));
+    if (Number.isFinite(uv) && uv > 0) OVERRIDES.ves_venta = uv; else delete OVERRIDES.ves_venta;
+    if (Number.isFinite(ev) && ev > 0) OVERRIDES.eur_paralelo = ev; else delete OVERRIDES.eur_paralelo;
+    saveOverrides();
+    if (DATA) { computeEffective(); renderNumbers(); renderCharts(); renderCalc(); }
+    refreshOverrideUI();
+  };
+  u.addEventListener("input", apply);
+  e.addEventListener("input", apply);
+  reset.addEventListener("click", () => {
+    OVERRIDES = {}; saveOverrides();
+    u.value = ""; e.value = "";
+    if (DATA) { computeEffective(); renderNumbers(); renderCharts(); renderCalc(); }
+    refreshOverrideUI();
+    toast("Tasas en automático");
+  });
+}
+
 // ============ MODO FIN DE SEMANA / FERIADO ============
 function setupFinde() {
   const sel = $("findeSelect");
@@ -786,6 +842,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupCalc();
   setupMoneda();
   setupFinde();
+  setupOverrides();
   $("newsRefresh").addEventListener("click", () => { loadNews(); toast("Noticias actualizadas"); });
   $("refreshBtn").addEventListener("click", () => refresh(true));
   await refresh(false);

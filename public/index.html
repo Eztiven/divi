@@ -275,6 +275,21 @@
 
         <div id="calcRef" class="calc-results"></div>
       </div>
+
+      <details class="rate-edit">
+        <summary>✏️ Ajustar tasas manualmente</summary>
+        <p class="muted small">Pon el valor exacto que ves en Binance. Si lo dejas vacío, se usa el automático del sistema.</p>
+        <label class="field">
+          <span>USDT en Binance (Bs)</span>
+          <input id="ovUsdt" type="number" inputmode="decimal" step="any" />
+        </label>
+        <label class="field">
+          <span>Euro paralelo (Bs)</span>
+          <input id="ovEur" type="number" inputmode="decimal" step="any" />
+        </label>
+        <button id="ovReset" class="ai-btn">↺ Volver al automático</button>
+        <p class="muted small" id="ovNote"></p>
+      </details>
     </section>
 
     <!-- ============ SECCIÓN NOTICIAS ============ -->

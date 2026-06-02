@@ -363,6 +363,23 @@ body {
 .calc-row .cr-value { font-size: 17px; font-weight: 700; }
 .calc-row .cr-value small { font-size: 12px; font-weight: 500; color: var(--text-dim); margin-left: 3px; }
 
+/* ---------- Editar tasas (manual) ---------- */
+.rate-edit {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-top: 14px;
+}
+.rate-edit summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--teal-light);
+}
+.rate-edit .btn-primary,
+.rate-edit .ai-btn { margin-top: 14px; }
+
 /* ---------- Noticias ---------- */
 .news-list { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; }
 .news-item {
