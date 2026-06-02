@@ -730,7 +730,7 @@ function recalc(source) {
   if (_calcLock || !DATA) return;
   const h = effHistory();
   const last = h[h.length - 1];
-  const bcv = last.bcv, ves = last.ves_venta, cop = last.cop_venta;
+  const bcv = last.bcv, ves = last.ves_venta, vesCompra = last.ves_compra, cop = last.cop_venta;
 
   // todo se convierte pasando por dólares (USD)
   let usd = 0;
@@ -753,9 +753,10 @@ function recalc(source) {
 
   let rows = "";
   if (ves) rows += calcRow(`🔄 Esos ${fmt(bsBcv)} Bs en Binance`, usdtEnBinance, "USDT");
-  if (ves) rows += calcRow("🟡 Comprar esa cantidad en Binance cuesta", usd * ves, "Bs");
+  if (ves) rows += calcRow(`🟡 Comprar ${fmt(usd)} USDT en Binance cuesta`, usd * ves, "Bs");
+  if (vesCompra) rows += calcRow(`🟢 Vender ${fmt(usd)} USDT en Binance te da`, usd * vesCompra, "Bs");
   if (ves) rows += calcRow("💰 Ahorro comprando al BCV", pct, "%");
-  rows += `<p class="muted small">Binance (USDT): ${fmt(ves)} Bs · BCV: ${fmt(bcv)} Bs por dólar</p>`;
+  rows += `<p class="muted small">Binance — comprar: ${fmt(ves)} · vender: ${fmt(vesCompra)} Bs/USDT · BCV: ${fmt(bcv)} Bs</p>`;
   ref.innerHTML = rows;
 }
 

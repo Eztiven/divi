@@ -2,7 +2,7 @@
  * - Cachea el "app shell" para que abra offline y sea instalable.
  * - Los datos (history.json) van "network-first" para mostrar siempre lo mas fresco.
  */
-const CACHE = "divi-v16";
+const CACHE = "divi-v17";
 const SHELL = [
   "./",
   "./index.html",
