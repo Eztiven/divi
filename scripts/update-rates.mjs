@@ -67,16 +67,16 @@ async function getText(url, timeoutMs = 20000) {
   }
 }
 
-function median(nums) {
-  const arr = nums.filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
+// promedio de una lista de números (ignora no-finitos). null si no hay datos.
+function mean(nums) {
+  const arr = nums.filter((n) => Number.isFinite(n));
   if (!arr.length) return null;
-  const mid = Math.floor(arr.length / 2);
-  return arr.length % 2 ? arr[mid] : (arr[mid - 1] + arr[mid]) / 2;
+  return arr.reduce((a, b) => a + b, 0) / arr.length;
 }
 
 // ---------- fuentes de datos ----------
 
-// Binance P2P: precio mediano de los primeros anuncios.
+// Binance P2P: PROMEDIO de las mejores ~8 ofertas (Binance ya las ordena por mejor precio).
 //   tradeType "BUY"  -> a como TU compras USDT  = "venta" del dolar (lo que pagas)
 //   tradeType "SELL" -> a como TU vendes USDT   = "compra" del dolar (lo que te dan)
 async function binanceP2P(fiat, tradeType) {
@@ -98,7 +98,7 @@ async function binanceP2P(fiat, tradeType) {
       }
     );
     const prices = (json?.data || []).map((d) => Number(d?.adv?.price));
-    return median(prices);
+    return mean(prices);
   } catch (e) {
     console.warn(`  ! Binance P2P ${fiat}/${tradeType} fallo: ${e.message}`);
     return null;
@@ -119,9 +119,8 @@ async function binanceP2PAvgBank(fiat, tradeType, payType) {
         body: JSON.stringify({ fiat, asset: "USDT", tradeType, page: 1, rows: 10, payTypes: [payType], publisherType: null }),
       }
     );
-    const prices = (json?.data || []).map((d) => Number(d?.adv?.price)).filter(Number.isFinite);
-    if (!prices.length) return null;
-    return prices.reduce((a, b) => a + b, 0) / prices.length;
+    const prices = (json?.data || []).map((d) => Number(d?.adv?.price));
+    return mean(prices);
   } catch (e) {
     console.warn(`  ! Binance P2P ${payType}/${tradeType} fallo: ${e.message}`);
     return null;
