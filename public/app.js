@@ -84,7 +84,14 @@ function computeEffective() {
     EFF = h.slice();
   } else {
     EFF = new Array(h.length);
-    const lastBiz = { bcv: null, eur_bcv: null };
+    // Semilla: la tasa con fecha valor del PRÓXIMO día hábil que el BCV publica por
+    // adelantado (el viernes ya trae la del lunes). Permite que sáb/dom muestren la
+    // tasa del lunes aunque todavía no exista ese punto en el historial.
+    const last = h[h.length - 1] || {};
+    const lastBiz = {
+      bcv: last.bcv_next != null ? last.bcv_next : null,
+      eur_bcv: last.eur_bcv_next != null ? last.eur_bcv_next : null,
+    };
     for (let i = h.length - 1; i >= 0; i--) {   // recorre del futuro al pasado
       const r = h[i];
       const o = { ...r };
@@ -198,7 +205,10 @@ function renderNumbers() {
   const wn = $("weekendNote");
   if (esFinDeSemana()) {
     wn.hidden = false;
-    wn.textContent = "📅 Fin de semana: el BCV no cambia sáb/dom — la tasa que aplica es la del lunes. El USDT/Euro sí siguen moviéndose.";
+    const cual = MODO_FINDE === "viernes"
+      ? "estás viendo la del viernes (último día publicado)"
+      : "estás viendo la del próximo día hábil (lunes)";
+    wn.textContent = `📅 Fin de semana: el BCV no cambia sáb/dom — ${cual}. El USDT/Euro sí siguen moviéndose.`;
   } else {
     wn.hidden = true;
   }
@@ -352,6 +362,7 @@ const chartBase = {
 };
 
 function renderBolivarChart() {
+  if (typeof Chart === "undefined") return;   // CDN bloqueado / sin conexión
   const data = rangeData("bolivar");
   const days = labelDays("bolivar", data);
   const labels = data.map((r) => labelFor(r.t, days));
@@ -398,6 +409,7 @@ function renderBolivarChart() {
 }
 
 function renderPesoChart() {
+  if (typeof Chart === "undefined") return;
   const data = rangeData("peso");
   const days = labelDays("peso", data);
   const labels = data.map((r) => labelFor(r.t, days));
@@ -429,6 +441,7 @@ function renderPesoChart() {
 }
 
 function renderAhorroChart() {
+  if (typeof Chart === "undefined") return;
   if (esEuro()) return;   // el ahorro % es para el dólar
   const data = rangeData("ahorro");
   const days = labelDays("ahorro", data);
@@ -461,6 +474,7 @@ function renderAhorroChart() {
 }
 
 function renderDolarChart() {
+  if (typeof Chart === "undefined") return;
   const data = rangeData("dolarbcv");
   const days = labelDays("dolarbcv", data);
   const labels = data.map((r) => labelFor(r.t, days));
@@ -507,19 +521,39 @@ function formatStamp(iso) {
 }
 
 // ============ UI EVENTS ============
+function activateTab(btn, focus = false) {
+  const tabs = [...document.querySelectorAll(".tab")];
+  tabs.forEach((b) => {
+    const on = b === btn;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-selected", on ? "true" : "false");
+    b.tabIndex = on ? 0 : -1;
+  });
+  document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
+  $(`tab-${btn.dataset.tab}`).classList.add("active");
+  if (focus) btn.focus();
+  // redibuja para que Chart.js calcule bien el tamaño al hacerse visible
+  if (btn.dataset.tab === "peso") renderPesoChart();
+  else if (btn.dataset.tab === "alertas") loadAlerts();
+  else if (btn.dataset.tab === "calc") renderCalc();
+  else if (btn.dataset.tab === "noticias") loadNews();
+  else { renderBolivarChart(); renderAhorroChart(); renderDolarChart(); }
+}
+
 function setupTabs() {
-  document.querySelectorAll(".tab").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".tab").forEach((b) => b.classList.remove("active"));
-      document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
-      btn.classList.add("active");
-      $(`tab-${btn.dataset.tab}`).classList.add("active");
-      // redibuja para que Chart.js calcule bien el tamaño al hacerse visible
-      if (btn.dataset.tab === "peso") renderPesoChart();
-      else if (btn.dataset.tab === "alertas") loadAlerts();
-      else if (btn.dataset.tab === "calc") renderCalc();
-      else if (btn.dataset.tab === "noticias") loadNews();
-      else { renderBolivarChart(); renderAhorroChart(); renderDolarChart(); }
+  const tabs = [...document.querySelectorAll(".tab")];
+  tabs.forEach((btn, i) => {
+    btn.addEventListener("click", () => activateTab(btn));
+    // navegación por teclado entre pestañas (patrón ARIA tablist)
+    btn.addEventListener("keydown", (e) => {
+      let j = null;
+      if (e.key === "ArrowRight") j = (i + 1) % tabs.length;
+      else if (e.key === "ArrowLeft") j = (i - 1 + tabs.length) % tabs.length;
+      else if (e.key === "Home") j = 0;
+      else if (e.key === "End") j = tabs.length - 1;
+      if (j === null) return;
+      e.preventDefault();
+      activateTab(tabs[j], true);
     });
   });
 }
@@ -556,10 +590,10 @@ function setupRanges() {
       const from = panel.querySelector(".cr-from");
       const to = panel.querySelector(".cr-to");
       const onChange = () => {
-        customRange[target] = {
-          from: from.value ? new Date(from.value + "T00:00:00").getTime() : null,
-          to: to.value ? new Date(to.value + "T23:59:59").getTime() : null,
-        };
+        let f = from.value ? new Date(from.value + "T00:00:00").getTime() : null;
+        let t = to.value ? new Date(to.value + "T23:59:59").getTime() : null;
+        if (f != null && t != null && f > t) [f, t] = [t, f];   // tolera fechas invertidas
+        customRange[target] = { from: f, to: t };
         ranges[target] = "custom";
         renderTarget(target);
       };
@@ -569,21 +603,28 @@ function setupRanges() {
   });
 }
 
+let _refreshing = false;   // evita cargas solapadas (polling + manual + visibilitychange)
 async function refresh(showToast = true) {
+  if (_refreshing) return;
+  _refreshing = true;
   const btn = $("refreshBtn");
   btn.classList.add("spin");
-  const ok = await loadData();
-  if (ok) {
-    computeEffective();
-    renderNumbers();
-    renderCharts();
-    renderCalc();        // la calculadora también usa la tasa nueva
-    refreshOverrideUI();
-    if (showToast) toast("Datos actualizados");
-  } else {
-    toast("No se pudieron cargar los datos");
+  try {
+    const ok = await loadData();
+    if (ok) {
+      computeEffective();
+      renderNumbers();
+      renderCharts();
+      renderCalc();        // la calculadora también usa la tasa nueva
+      refreshOverrideUI();
+      if (showToast) toast("Datos actualizados");
+    } else {
+      toast("No se pudieron cargar los datos");
+    }
+  } finally {
+    btn.classList.remove("spin");
+    _refreshing = false;
   }
-  btn.classList.remove("spin");
 }
 
 // ============ ALERTAS ============
@@ -626,7 +667,7 @@ function renderAlerts() {
     item.className = "alert-item" + (active ? "" : " off");
     item.innerHTML =
       `<div class="ai-main">
-         <div class="ai-title">${m.label} ${op} ${fmt(a.value, m.frac)} ${m.unit}</div>
+         <div class="ai-title">${escapeHtml(m.label)} ${op} ${fmt(a.value, m.frac)} ${escapeHtml(m.unit)}</div>
          <div class="ai-sub"><span class="badge ${active ? "on" : "fired"}">${active ? "activa" : "disparada"}</span></div>
        </div>
        <button class="ai-btn" data-act="${active ? "del" : "act"}" data-i="${i + 1}">${active ? "🗑️ Borrar" : "↺ Activar"}</button>`;
@@ -645,7 +686,7 @@ function renderAlerts() {
 function sendBotCommand(cmd, note) {
   if (TELEGRAM_BOT_USERNAME) {
     const url = `https://t.me/${TELEGRAM_BOT_USERNAME}?text=${encodeURIComponent(cmd)}`;
-    window.open(url, "_blank");
+    window.open(url, "_blank", "noopener");
     toast(note || "Abriendo Telegram… dale enviar al comando.");
   } else if (navigator.clipboard) {
     navigator.clipboard.writeText(cmd)
@@ -999,9 +1040,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   tickCountdown();
   setInterval(tickCountdown, 1000);
 
-  // refresca al volver a la app
+  // un único handler al volver a la app: refresca datos y revisa nueva versión
+  let _swCheckUpdate = null;
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") refresh(false);
+    if (document.visibilityState !== "visible") return;
+    refresh(false);
+    if (_swCheckUpdate) _swCheckUpdate();
   });
 
   // service worker + aviso de nueva versión de la app
@@ -1017,12 +1061,9 @@ document.addEventListener("DOMContentLoaded", async () => {
           if (nuevo.state === "installed" && navigator.serviceWorker.controller) showUpdateBanner();
         });
       });
-      // la PWA abierta no revisa sola: chequea al volver a la app y cada 30 min
-      const checkUpdate = () => reg.update().catch(() => {});
-      document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "visible") checkUpdate();
-      });
-      setInterval(checkUpdate, 30 * 60000);
+      // la PWA abierta no revisa sola: chequea al volver a la app (handler de arriba) y cada 30 min
+      _swCheckUpdate = () => reg.update().catch(() => {});
+      setInterval(_swCheckUpdate, 30 * 60000);
     }).catch(() => {});
   }
 });

@@ -15,7 +15,9 @@
   <meta name="apple-mobile-web-app-title" content="Divi" />
 
   <link rel="stylesheet" href="styles.css" />
-  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"
+          integrity="sha384-JUh163oCRItcbPme8pYnROHQMC6fNKTBWtRG3I3I0erJkzNgL7uxKlNwcrcFKeqF"
+          crossorigin="anonymous"></script>
   <script defer src="app.js"></script>
 </head>
 <body>
@@ -30,17 +32,17 @@
     <button id="refreshBtn" class="icon-btn" title="Actualizar" aria-label="Actualizar">⟳</button>
   </header>
 
-  <nav class="tabs" role="tablist">
-    <button class="tab active" data-tab="calc" role="tab">🧮 Calculadora</button>
-    <button class="tab" data-tab="bolivar" role="tab">🇻🇪 Bolívar</button>
-    <button class="tab" data-tab="peso" role="tab">🇨🇴 Peso</button>
-    <button class="tab" data-tab="alertas" role="tab">🔔 Alertas</button>
-    <button class="tab" data-tab="noticias" role="tab">📰 Noticias</button>
+  <nav class="tabs" role="tablist" aria-label="Secciones">
+    <button class="tab active" data-tab="calc" role="tab" id="tabbtn-calc" aria-controls="tab-calc" aria-selected="true">🧮 Calculadora</button>
+    <button class="tab" data-tab="bolivar" role="tab" id="tabbtn-bolivar" aria-controls="tab-bolivar" aria-selected="false" tabindex="-1">🇻🇪 Bolívar</button>
+    <button class="tab" data-tab="peso" role="tab" id="tabbtn-peso" aria-controls="tab-peso" aria-selected="false" tabindex="-1">🇨🇴 Peso</button>
+    <button class="tab" data-tab="alertas" role="tab" id="tabbtn-alertas" aria-controls="tab-alertas" aria-selected="false" tabindex="-1">🔔 Alertas</button>
+    <button class="tab" data-tab="noticias" role="tab" id="tabbtn-noticias" aria-controls="tab-noticias" aria-selected="false" tabindex="-1">📰 Noticias</button>
   </nav>
 
   <main>
     <!-- ============ SECCIÓN BOLÍVAR ============ -->
-    <section id="tab-bolivar" class="tab-panel">
+    <section id="tab-bolivar" class="tab-panel" role="tabpanel" aria-labelledby="tabbtn-bolivar" tabindex="0">
       <div class="moneda-bar" id="monedaBar">
         <button class="moneda-btn active" data-moneda="usdt">💵 Dólar (USDT)</button>
         <button class="moneda-btn" data-moneda="euro">💶 Euro BCV</button>
@@ -152,7 +154,7 @@
     </section>
 
     <!-- ============ SECCIÓN PESO ============ -->
-    <section id="tab-peso" class="tab-panel">
+    <section id="tab-peso" class="tab-panel" role="tabpanel" aria-labelledby="tabbtn-peso" tabindex="0">
       <div class="hero-card peso">
         <p class="hero-label">Dólar en Binance (peso colombiano)</p>
         <p class="hero-value" id="copVentaHero">--</p>
@@ -200,7 +202,7 @@
     </section>
 
     <!-- ============ SECCIÓN ALERTAS ============ -->
-    <section id="tab-alertas" class="tab-panel">
+    <section id="tab-alertas" class="tab-panel" role="tabpanel" aria-labelledby="tabbtn-alertas" tabindex="0">
       <div class="master-card">
         <div>
           <p class="rate-name">Notificaciones</p>
@@ -254,7 +256,7 @@
     </section>
 
     <!-- ============ SECCIÓN CALCULADORA ============ -->
-    <section id="tab-calc" class="tab-panel active">
+    <section id="tab-calc" class="tab-panel active" role="tabpanel" aria-labelledby="tabbtn-calc" tabindex="0">
       <div class="chart-card">
         <h2>Calculadora</h2>
         <p class="muted small">Escribe en cualquier casilla y las demás se calculan solas (precio Binance).</p>
@@ -288,7 +290,7 @@
     </section>
 
     <!-- ============ SECCIÓN NOTICIAS ============ -->
-    <section id="tab-noticias" class="tab-panel">
+    <section id="tab-noticias" class="tab-panel" role="tabpanel" aria-labelledby="tabbtn-noticias" tabindex="0">
       <div class="chart-card">
         <div class="chart-head">
           <h2>Noticias del dólar</h2>
@@ -303,7 +305,7 @@
     <p>Actualizado: <span id="updatedAt">--</span></p>
     <p id="nextUpdate" class="next-update">--</p>
     <p id="staleNote" class="stale-note" hidden></p>
-    <p class="muted">Fuentes: BCV (dolarapi) · Binance P2P · open.er-api</p>
+    <p class="muted">Fuentes: BCV (bcv.org.ve / dolarapi) · Binance P2P · open.er-api</p>
   </footer>
 
   <div id="toast" class="toast"></div>

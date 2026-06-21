@@ -19,6 +19,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import https from "node:https";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -104,7 +105,52 @@ async function binanceP2P(fiat, tradeType) {
   }
 }
 
-// BCV oficial (con respaldo).
+// "612,43320000" -> 612.4332 (coma decimal, punto de miles)
+function parseVeNumber(s) {
+  if (s == null) return null;
+  const n = Number(String(s).trim().replace(/\./g, "").replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+}
+
+// Extrae { value, date } de un bloque (id="dolar"/"euro") del HTML del BCV.
+function parseBcvBlock(html, id) {
+  const i = html.indexOf(`id="${id}"`);
+  if (i < 0) return { value: null, date: null };
+  const block = html.slice(i, i + 800);
+  const mVal = block.match(/<strong[^>]*>\s*([\d.,]+)\s*<\/strong>/i);
+  // Fecha Valor: <span ... content="2026-06-22T00:00:00-04:00">
+  const mDate = block.match(/Fecha\s*Valor[\s\S]*?content="([^"]+)"/i);
+  return { value: mVal ? parseVeNumber(mVal[1]) : null, date: mDate ? mDate[1] : null };
+}
+
+// BCV directo: bcv.org.ve publica el VIERNES la tasa con "Fecha Valor" del LUNES
+// (el próximo día hábil). Los agregadores (dolarapi) van atrasados el fin de semana,
+// así que de aquí sacamos la tasa "adelantada" que alimenta el modo "lunes" de la app.
+// El certificado TLS del BCV suele ser inválido -> https con rejectUnauthorized:false.
+// No lanza: si falla, devuelve nulos (se usa dentro de Promise.all).
+async function fetchBCVDirect() {
+  try {
+    const html = await new Promise((resolve, reject) => {
+      const req = https.get(
+        "https://www.bcv.org.ve/",
+        { rejectUnauthorized: false, timeout: 20000, headers: { "user-agent": "Mozilla/5.0 (DiviBot)" } },
+        (res) => {
+          if (res.statusCode !== 200) { res.resume(); return reject(new Error(`HTTP ${res.statusCode}`)); }
+          let d = ""; res.on("data", (c) => (d += c)); res.on("end", () => resolve(d));
+        },
+      );
+      req.on("error", reject);
+      req.on("timeout", () => req.destroy(new Error("timeout")));
+    });
+    return { usd: parseBcvBlock(html, "dolar"), eur: parseBcvBlock(html, "euro") };
+  } catch (e) {
+    console.warn(`  ! BCV directo falló: ${e.message}`);
+    return { usd: { value: null, date: null }, eur: { value: null, date: null } };
+  }
+}
+
+// BCV oficial VIGENTE (lo que aplica HOY; alimenta el modo "viernes"). dolarapi va
+// por fecha valor, así que el finde sigue dando la del último día hábil publicado.
 async function fetchBCV() {
   try {
     const j = await getJSON("https://ve.dolarapi.com/v1/dolares/oficial");
@@ -431,9 +477,10 @@ async function main() {
   const prev = store.history[store.history.length - 1] || null;
 
   // consultas en paralelo
-  const [bcvData, vesVentaP2P, vesCompraP2P, copVentaP2P, copCompraP2P, copOficial, paralelo, euro] =
+  const [bcvData, bcvDirect, vesVentaP2P, vesCompraP2P, copVentaP2P, copCompraP2P, copOficial, paralelo, euro] =
     await Promise.all([
       fetchBCV(),
+      fetchBCVDirect(),
       binanceP2P("VES", "BUY"),
       binanceP2P("VES", "SELL"),
       binanceP2P("COP", "BUY"),
@@ -452,14 +499,19 @@ async function main() {
   const now = new Date().toISOString();
   const entry = {
     t: now,
-    bcv: bcvData.value ?? prev?.bcv ?? null,
+    // tasa VIGENTE hoy (modo "viernes"); BCV directo como último respaldo
+    bcv: bcvData.value ?? bcvDirect.usd.value ?? prev?.bcv ?? null,
     bcv_date: bcvData.date ?? prev?.bcv_date ?? null,
+    // tasa con fecha valor del PRÓXIMO día hábil que el BCV publica por adelantado (modo "lunes")
+    bcv_next: bcvDirect.usd.value ?? prev?.bcv_next ?? null,
+    bcv_next_date: bcvDirect.usd.date ?? prev?.bcv_next_date ?? null,
     ves_venta: ves_venta == null ? null : Number(ves_venta.toFixed(4)),
     ves_compra: ves_compra == null ? null : Number(ves_compra.toFixed(4)),
     cop_venta: cop_venta == null ? null : Number(cop_venta.toFixed(2)),
     cop_compra: cop_compra == null ? null : Number(cop_compra.toFixed(2)),
     cop_oficial: copOficial ?? prev?.cop_oficial ?? null,
-    eur_bcv: euro.bcv != null ? Number(euro.bcv.toFixed(4)) : (prev?.eur_bcv ?? null),
+    eur_bcv: euro.bcv != null ? Number(euro.bcv.toFixed(4)) : (bcvDirect.eur.value ?? prev?.eur_bcv ?? null),
+    eur_bcv_next: bcvDirect.eur.value != null ? Number(bcvDirect.eur.value.toFixed(4)) : (prev?.eur_bcv_next ?? null),
   };
 
   console.log("  Punto nuevo:", JSON.stringify(entry));
