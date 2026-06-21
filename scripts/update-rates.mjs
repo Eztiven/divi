@@ -79,23 +79,16 @@ function mean(nums) {
 // Binance P2P: PROMEDIO de las mejores ~8 ofertas (Binance ya las ordena por mejor precio).
 //   tradeType "BUY"  -> a como TU compras USDT  = "venta" del dolar (lo que pagas)
 //   tradeType "SELL" -> a como TU vendes USDT   = "compra" del dolar (lo que te dan)
-async function binanceP2P(fiat, tradeType) {
+//   transAmount (fiat, opcional) -> solo ofertas que aceptan ese monto, así el precio
+//     refleja lo que de verdad consigue alguien que cambia un monto típico (no las
+//     mejores ofertas con mínimos enormes que un usuario normal no puede usar).
+async function binanceP2P(fiat, tradeType, transAmount = null) {
   try {
+    const body = { fiat, asset: "USDT", tradeType, page: 1, rows: 8, payTypes: [], publisherType: null };
+    if (transAmount) body.transAmount = String(transAmount);
     const json = await getJSON(
       "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search",
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          fiat,
-          asset: "USDT",
-          tradeType,            // "BUY" | "SELL"
-          page: 1,
-          rows: 8,
-          payTypes: [],
-          publisherType: null,
-        }),
-      }
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }
     );
     const prices = (json?.data || []).map((d) => Number(d?.adv?.price));
     return mean(prices);
@@ -108,16 +101,14 @@ async function binanceP2P(fiat, tradeType) {
 // Bancos venezolanos que ofrecemos en el selector (identifier de Binance P2P).
 const BANKS = ["Banesco", "Mercantil", "Provincial", "BancoDeVenezuela", "Bancamiga", "PagoMovil"];
 
-// Promedio de precio de las ofertas P2P filtradas por UN banco concreto.
-async function binanceP2PAvgBank(fiat, tradeType, payType) {
+// Promedio de precio de las ofertas P2P filtradas por UN banco concreto (y monto).
+async function binanceP2PAvgBank(fiat, tradeType, payType, transAmount = null) {
   try {
+    const body = { fiat, asset: "USDT", tradeType, page: 1, rows: 10, payTypes: [payType], publisherType: null };
+    if (transAmount) body.transAmount = String(transAmount);
     const json = await getJSON(
       "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search",
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ fiat, asset: "USDT", tradeType, page: 1, rows: 10, payTypes: [payType], publisherType: null }),
-      }
+      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }
     );
     const prices = (json?.data || []).map((d) => Number(d?.adv?.price));
     return mean(prices);
@@ -130,12 +121,13 @@ async function binanceP2PAvgBank(fiat, tradeType, payType) {
 // Desglose por banco: { Banesco: {v: ventaProm, c: compraProm}, ... }
 //   v = BUY  (a como TÚ compras USDT  = "venta" del dólar)
 //   c = SELL (a como TÚ vendes USDT   = "compra" del dólar)
-async function fetchBankBreakdown(fiat = "VES") {
+//   transAmount (fiat) -> filtra por un monto típico (ver binanceP2P)
+async function fetchBankBreakdown(fiat = "VES", transAmount = null) {
   const out = {};
   await Promise.all(BANKS.map(async (b) => {
     const [v, c] = await Promise.all([
-      binanceP2PAvgBank(fiat, "BUY", b),
-      binanceP2PAvgBank(fiat, "SELL", b),
+      binanceP2PAvgBank(fiat, "BUY", b, transAmount),
+      binanceP2PAvgBank(fiat, "SELL", b, transAmount),
     ]);
     if (v == null && c == null) return;
     out[b] = {};
@@ -516,19 +508,26 @@ async function main() {
   }
   const prev = store.history[store.history.length - 1] || null;
 
+  // Monto de referencia para el precio P2P: filtramos las ofertas por ~100 USDT
+  // (un monto retail) para que el precio sea el que de verdad consigue la mayoría,
+  // no las mejores ofertas con mínimos enormes. En Bs, usando la última tasa conocida.
+  const TARGET_USDT = 100;
+  const refRate = prev?.ves_venta || prev?.bcv || 800;
+  const vesAmount = Math.round(TARGET_USDT * refRate);
+
   // consultas en paralelo
   const [bcvData, bcvDirect, vesVentaP2P, vesCompraP2P, copVentaP2P, copCompraP2P, copOficial, paralelo, euro, bankBreakdown] =
     await Promise.all([
       fetchBCV(),
       fetchBCVDirect(),
-      binanceP2P("VES", "BUY"),
-      binanceP2P("VES", "SELL"),
+      binanceP2P("VES", "BUY", vesAmount),
+      binanceP2P("VES", "SELL", vesAmount),
       binanceP2P("COP", "BUY"),
       binanceP2P("COP", "SELL"),
       fetchCOPoficial(),
       fetchParaleloVES(),
       fetchEuro(),
-      fetchBankBreakdown("VES"),
+      fetchBankBreakdown("VES", vesAmount),
     ]);
 
   // arma el punto (con respaldos)
