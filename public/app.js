@@ -58,6 +58,19 @@ function esFinDeSemana() {
 let MODO_FINDE = localStorage.getItem("divi-finde") || "habil";   // 'habil' | 'viernes'
 let EFF = [];   // historial con la tasa BCV "aplicable" ya resuelta
 
+// ---- banco para el precio de Binance (promedio de ese banco) ----
+// "" = todos los bancos (precio general). Si se elige uno, su promedio alimenta
+// venta/compra en TODA la app (números, calculadora, % ahorro, semáforo, gráficos).
+let BANCO = localStorage.getItem("divi-banco") || "";
+const BANK_LABELS = {
+  Banesco: "Banesco",
+  Mercantil: "Mercantil",
+  Provincial: "Provincial (BBVA)",
+  BancoDeVenezuela: "Banco de Venezuela",
+  Bancamiga: "Bancamiga",
+  PagoMovil: "Pago Móvil",
+};
+
 // valores que el usuario puede fijar a mano (anulan el automático en el punto actual)
 let OVERRIDES = {};
 try { OVERRIDES = JSON.parse(localStorage.getItem("divi-overrides") || "{}"); } catch { OVERRIDES = {}; }
@@ -101,6 +114,19 @@ function computeEffective() {
         if (carried && lastBiz[key] != null) o[key] = lastBiz[key];
       });
       EFF[i] = o;
+    }
+  }
+  // banco elegido: usa SU promedio como venta/compra en cada punto que lo tenga.
+  // Los puntos viejos (sin desglose) mantienen el precio general como respaldo.
+  if (BANCO) {
+    for (let i = 0; i < EFF.length; i++) {
+      const b = EFF[i].bk && EFF[i].bk[BANCO];
+      if (!b) continue;
+      EFF[i] = {
+        ...EFF[i],
+        ves_venta: b.v != null ? b.v : EFF[i].ves_venta,
+        ves_compra: b.c != null ? b.c : EFF[i].ves_compra,
+      };
     }
   }
   // valores manuales: anulan el automático SOLO en el punto actual (el último)
@@ -199,6 +225,17 @@ function renderNumbers() {
     $("bcvValue").textContent = fmt(last.bcv);
     $("vesVentaValue").textContent = fmt(last.ves_venta);
     $("vesCompraValue").textContent = fmt(last.ves_compra);
+  }
+  // nota del banco elegido (precio Binance)
+  const bn = $("bancoNote");
+  if (bn) {
+    if (!BANCO) {
+      bn.textContent = "Mostrando el precio general (todos los bancos).";
+    } else if (last.bk && last.bk[BANCO]) {
+      bn.textContent = `Promedio de ${BANK_LABELS[BANCO] || BANCO} en Binance (venta y compra).`;
+    } else {
+      bn.textContent = `Aún no hay datos de ${BANK_LABELS[BANCO] || BANCO}; mostrando el precio general por ahora.`;
+    }
   }
   applyMonedaView();
   // aviso de fin de semana
@@ -797,7 +834,8 @@ function recalc(source) {
   if (ves) rows += calcRow(`🟡 Comprar ${fmt(usd)} USDT en Binance cuesta`, usd * ves, "Bs");
   if (vesCompra) rows += calcRow(`🟢 Vender ${fmt(usd)} USDT en Binance te da`, usd * vesCompra, "Bs");
   if (ves) rows += calcRow("💰 Ahorro comprando al BCV", pct, "%");
-  rows += `<p class="muted small">Binance — comprar: ${fmt(ves)} · vender: ${fmt(vesCompra)} Bs/USDT · BCV: ${fmt(bcv)} Bs</p>`;
+  const banco = BANCO ? ` (${BANK_LABELS[BANCO] || BANCO})` : "";
+  rows += `<p class="muted small">Binance${banco} — comprar: ${fmt(ves)} · vender: ${fmt(vesCompra)} Bs/USDT · BCV: ${fmt(bcv)} Bs</p>`;
   ref.innerHTML = rows;
 }
 
@@ -1007,6 +1045,18 @@ function setupFinde() {
   });
 }
 
+// ============ SELECTOR DE BANCO (precio Binance) ============
+function setupBanco() {
+  const sel = $("bancoSelect");
+  if (!sel) return;
+  sel.value = BANCO;
+  sel.addEventListener("change", () => {
+    BANCO = sel.value;
+    localStorage.setItem("divi-banco", BANCO);
+    if (DATA) { computeEffective(); renderNumbers(); renderCharts(); renderCalc(); }
+  });
+}
+
 // ============ SELECTOR DE MONEDA ============
 function setupMoneda() {
   document.querySelectorAll("#monedaBar .moneda-btn").forEach((b) => {
@@ -1029,6 +1079,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupCalc();
   setupMoneda();
   setupFinde();
+  setupBanco();
   setupOverrides();
   $("newsRefresh").addEventListener("click", () => { loadNews(); toast("Noticias actualizadas"); });
   $("refreshBtn").addEventListener("click", () => refresh(true));

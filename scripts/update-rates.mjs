@@ -105,6 +105,47 @@ async function binanceP2P(fiat, tradeType) {
   }
 }
 
+// Bancos venezolanos que ofrecemos en el selector (identifier de Binance P2P).
+const BANKS = ["Banesco", "Mercantil", "Provincial", "BancoDeVenezuela", "Bancamiga", "PagoMovil"];
+
+// Promedio de precio de las ofertas P2P filtradas por UN banco concreto.
+async function binanceP2PAvgBank(fiat, tradeType, payType) {
+  try {
+    const json = await getJSON(
+      "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ fiat, asset: "USDT", tradeType, page: 1, rows: 10, payTypes: [payType], publisherType: null }),
+      }
+    );
+    const prices = (json?.data || []).map((d) => Number(d?.adv?.price)).filter(Number.isFinite);
+    if (!prices.length) return null;
+    return prices.reduce((a, b) => a + b, 0) / prices.length;
+  } catch (e) {
+    console.warn(`  ! Binance P2P ${payType}/${tradeType} fallo: ${e.message}`);
+    return null;
+  }
+}
+
+// Desglose por banco: { Banesco: {v: ventaProm, c: compraProm}, ... }
+//   v = BUY  (a como TÚ compras USDT  = "venta" del dólar)
+//   c = SELL (a como TÚ vendes USDT   = "compra" del dólar)
+async function fetchBankBreakdown(fiat = "VES") {
+  const out = {};
+  await Promise.all(BANKS.map(async (b) => {
+    const [v, c] = await Promise.all([
+      binanceP2PAvgBank(fiat, "BUY", b),
+      binanceP2PAvgBank(fiat, "SELL", b),
+    ]);
+    if (v == null && c == null) return;
+    out[b] = {};
+    if (v != null) out[b].v = Number(v.toFixed(2));
+    if (c != null) out[b].c = Number(c.toFixed(2));
+  }));
+  return out;
+}
+
 // "612,43320000" -> 612.4332 (coma decimal, punto de miles)
 function parseVeNumber(s) {
   if (s == null) return null;
@@ -477,7 +518,7 @@ async function main() {
   const prev = store.history[store.history.length - 1] || null;
 
   // consultas en paralelo
-  const [bcvData, bcvDirect, vesVentaP2P, vesCompraP2P, copVentaP2P, copCompraP2P, copOficial, paralelo, euro] =
+  const [bcvData, bcvDirect, vesVentaP2P, vesCompraP2P, copVentaP2P, copCompraP2P, copOficial, paralelo, euro, bankBreakdown] =
     await Promise.all([
       fetchBCV(),
       fetchBCVDirect(),
@@ -488,6 +529,7 @@ async function main() {
       fetchCOPoficial(),
       fetchParaleloVES(),
       fetchEuro(),
+      fetchBankBreakdown("VES"),
     ]);
 
   // arma el punto (con respaldos)
@@ -512,6 +554,8 @@ async function main() {
     cop_oficial: copOficial ?? prev?.cop_oficial ?? null,
     eur_bcv: euro.bcv != null ? Number(euro.bcv.toFixed(4)) : (bcvDirect.eur.value ?? prev?.eur_bcv ?? null),
     eur_bcv_next: bcvDirect.eur.value != null ? Number(bcvDirect.eur.value.toFixed(4)) : (prev?.eur_bcv_next ?? null),
+    // promedio de Binance P2P por banco (venta/compra) para el selector de banco
+    bk: (bankBreakdown && Object.keys(bankBreakdown).length) ? bankBreakdown : (prev?.bk ?? null),
   };
 
   console.log("  Punto nuevo:", JSON.stringify(entry));
