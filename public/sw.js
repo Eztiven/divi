@@ -2,12 +2,13 @@
  * - Cachea el "app shell" para que abra offline y sea instalable.
  * - Los datos (history.json) van "network-first" para mostrar siempre lo mas fresco.
  */
-const CACHE = "divi-v28";
+const CACHE = "divi-v29";
 const SHELL = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./vendor/chart.umd.min.js",
   "./manifest.webmanifest",
   "./icons/icon-192.png?v=3",
   "./icons/icon-512.png?v=3",
