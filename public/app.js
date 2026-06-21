@@ -71,11 +71,6 @@ const BANK_LABELS = {
   PagoMovil: "Pago Móvil",
 };
 
-// valores que el usuario puede fijar a mano (anulan el automático en el punto actual)
-let OVERRIDES = {};
-try { OVERRIDES = JSON.parse(localStorage.getItem("divi-overrides") || "{}"); } catch { OVERRIDES = {}; }
-function saveOverrides() { localStorage.setItem("divi-overrides", JSON.stringify(OVERRIDES)); }
-
 function caracasDate(iso) { return new Date(new Date(iso).getTime() - 4 * 3600 * 1000); }
 function caracasDay(iso) { return caracasDate(iso).toISOString().slice(0, 10); }
 function caracasWeekday(iso) { return caracasDate(iso).getUTCDay(); }
@@ -129,13 +124,6 @@ function computeEffective() {
       };
     }
   }
-  // valores manuales: anulan el automático SOLO en el punto actual (el último)
-  const li = EFF.length - 1;
-  const ov = { ...EFF[li] };
-  let manual = false;
-  if (OVERRIDES.ves_venta != null) { ov.ves_venta = OVERRIDES.ves_venta; manual = true; }
-  ov._manual = manual;
-  EFF[li] = ov;
 }
 const effHistory = () => (EFF.length ? EFF : ((DATA && DATA.history) || []));
 const ranges = { bolivar: 7, peso: 7, ahorro: 7, dolarbcv: 7 };   // dias (o "custom") por grafica
@@ -658,7 +646,6 @@ async function refresh(showToast = true) {
       renderNumbers();
       renderCharts();
       renderCalc();        // la calculadora también usa la tasa nueva
-      refreshOverrideUI();
       if (showToast) toast("Datos actualizados");
     } else {
       toast("No se pudieron cargar los datos");
@@ -913,38 +900,6 @@ function renderNews() {
   });
 }
 
-// ============ TASAS MANUALES (override) ============
-function refreshOverrideUI() {
-  const raw = (DATA && DATA.history) ? DATA.history[DATA.history.length - 1] : null;
-  const u = $("ovUsdt"), note = $("ovNote");
-  if (!u || !raw) return;
-  u.placeholder = "auto: " + fmt(raw.ves_venta);
-  if (OVERRIDES.ves_venta != null && document.activeElement !== u) u.value = toField(OVERRIDES.ves_venta, 2);
-  note.textContent = OVERRIDES.ves_venta != null ? `✅ Usando valor manual: USDT ${fmt(OVERRIDES.ves_venta)}` : "";
-}
-
-function setupOverrides() {
-  const u = $("ovUsdt"), reset = $("ovReset");
-  if (!u) return;
-  const apply = () => {
-    sanitizeField(u);
-    const uv = calcNum(u.value);
-    if (uv > 0) OVERRIDES.ves_venta = uv; else delete OVERRIDES.ves_venta;
-    saveOverrides();
-    if (DATA) { computeEffective(); renderNumbers(); renderCharts(); renderCalc(); }
-    refreshOverrideUI();
-  };
-  u.addEventListener("input", apply);
-  cursorAlFinal(u);
-  reset.addEventListener("click", () => {
-    OVERRIDES = {}; saveOverrides();
-    u.value = "";
-    if (DATA) { computeEffective(); renderNumbers(); renderCharts(); renderCalc(); }
-    refreshOverrideUI();
-    toast("Tasas en automático");
-  });
-}
-
 // ============ CONTADOR DE PRÓXIMA ACTUALIZACIÓN ============
 // cron-job.org dispara el workflow a los minutos 0, 15, 30 y 45 de cada hora
 // (UTC). El contador apunta a la LLEGADA estimada del dato (corrida + ~3,5 min de
@@ -1092,7 +1047,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupMoneda();
   setupFinde();
   setupBanco();
-  setupOverrides();
   $("newsRefresh").addEventListener("click", () => { loadNews(); toast("Noticias actualizadas"); });
   $("refreshBtn").addEventListener("click", () => refresh(true));
   await refresh(false);
