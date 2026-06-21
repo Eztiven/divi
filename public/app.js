@@ -225,6 +225,11 @@ function renderNumbers() {
     $("bcvValue").textContent = fmt(last.bcv);
     $("vesVentaValue").textContent = fmt(last.ves_venta);
     $("vesCompraValue").textContent = fmt(last.ves_compra);
+    // badge del banco activo en la tarjeta USDT (BANK_LABELS es constante confiable)
+    const cn = $("usdtCardName");
+    if (cn) cn.innerHTML = BANCO
+      ? `Dólar USDT <span class="card-bank">· ${BANK_LABELS[BANCO] || BANCO}</span>`
+      : "Dólar USDT";
   }
   // nota del banco elegido (precio Binance)
   const bn = $("bancoNote");
@@ -1046,14 +1051,21 @@ function setupFinde() {
 }
 
 // ============ SELECTOR DE BANCO (precio Binance) ============
+// Hay dos selectores (Bolívar y Calculadora) que comparten estado: clase .banco-select.
 function setupBanco() {
-  const sel = $("bancoSelect");
-  if (!sel) return;
-  sel.value = BANCO;
-  sel.addEventListener("change", () => {
-    BANCO = sel.value;
-    localStorage.setItem("divi-banco", BANCO);
-    if (DATA) { computeEffective(); renderNumbers(); renderCharts(); renderCalc(); }
+  const sels = [...document.querySelectorAll(".banco-select")];
+  if (!sels.length) return;
+  const opts = '<option value="">Todos los bancos (general)</option>' +
+    Object.entries(BANK_LABELS).map(([k, v]) => `<option value="${k}">${v}</option>`).join("");
+  sels.forEach((sel) => {
+    sel.innerHTML = opts;            // BANK_LABELS son constantes confiables
+    sel.value = BANCO;
+    sel.addEventListener("change", () => {
+      BANCO = sel.value;
+      localStorage.setItem("divi-banco", BANCO);
+      sels.forEach((s) => { if (s !== sel) s.value = BANCO; });   // mantiene ambos en sync
+      if (DATA) { computeEffective(); renderNumbers(); renderCharts(); renderCalc(); }
+    });
   });
 }
 

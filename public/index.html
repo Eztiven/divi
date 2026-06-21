@@ -56,27 +56,21 @@
 
       <p class="weekend-note" id="weekendNote" hidden></p>
 
-      <div class="finde-setting">
-        <span>Tasa en fin de semana/feriado:</span>
-        <select id="findeSelect">
-          <option value="habil">la del próximo día hábil (lunes)</option>
-          <option value="viernes">la del viernes (último publicado)</option>
-        </select>
-      </div>
-
-      <div class="finde-setting">
-        <span>Banco (precio Binance):</span>
-        <select id="bancoSelect" aria-describedby="bancoNote">
-          <option value="">Todos los bancos (general)</option>
-          <option value="Banesco">Banesco</option>
-          <option value="Mercantil">Mercantil</option>
-          <option value="Provincial">Provincial (BBVA)</option>
-          <option value="BancoDeVenezuela">Banco de Venezuela</option>
-          <option value="Bancamiga">Bancamiga</option>
-          <option value="PagoMovil">Pago Móvil</option>
-        </select>
-      </div>
-      <p class="muted small" id="bancoNote"></p>
+      <details class="rate-settings">
+        <summary>⚙️ Ajustes de tasa</summary>
+        <div class="finde-setting">
+          <span>Tasa en fin de semana/feriado:</span>
+          <select id="findeSelect" class="nice-select">
+            <option value="habil">la del próximo día hábil (lunes)</option>
+            <option value="viernes">la del viernes (último publicado)</option>
+          </select>
+        </div>
+        <div class="finde-setting">
+          <span>Banco (precio Binance):</span>
+          <select id="bancoSelect" class="nice-select banco-select" aria-describedby="bancoNote"></select>
+        </div>
+        <p class="muted small" id="bancoNote"></p>
+      </details>
 
       <div class="semaforo-card na" id="semaforoCard">
         <span class="sem-dot"></span>
@@ -93,9 +87,9 @@
           <p class="rate-meta">Bs por dólar</p>
         </div>
         <div class="rate-card accent">
-          <p class="rate-name">Dólar USDT</p>
+          <p class="rate-name"><span id="usdtCardName">Dólar USDT</span></p>
           <p class="rate-value" id="vesVentaValue">--</p>
-          <p class="rate-meta">Compra: <span id="vesCompraValue">--</span></p>
+          <p class="rate-meta">Comprar USDT · vender: <span id="vesCompraValue">--</span></p>
         </div>
       </div>
 
@@ -274,6 +268,11 @@
       <div class="chart-card">
         <h2>Calculadora</h2>
         <p class="muted small">Escribe en cualquier casilla y las demás se calculan solas (precio Binance).</p>
+
+        <div class="calc-bank">
+          <label for="bancoSelectCalc">🏦 Precio de</label>
+          <select id="bancoSelectCalc" class="nice-select banco-select"></select>
+        </div>
 
         <label class="field">
           <span>💵 Dólares (USD)</span>

@@ -348,18 +348,57 @@ body {
 
 /* ajuste de tasa fin de semana/feriado */
 .finde-setting {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap;
   font-size: 12px; color: var(--text-dim);
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
-.finde-setting select {
-  background: var(--bg-card-2);
+
+/* selects con apariencia unificada y chevron propio */
+.field select,
+.nice-select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%2393a1b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+.field select { padding-right: 34px; min-height: 44px; }
+.nice-select {
+  width: 100%;
+  background-color: var(--bg-card-2);
   border: 1px solid var(--border);
   color: var(--text);
-  border-radius: 8px;
-  padding: 6px 8px;
-  font-size: 12px;
+  border-radius: 10px;
+  padding: 10px 34px 10px 12px;
+  font-size: 14px;
+  min-height: 44px;
 }
+
+/* plegable "Ajustes de tasa" */
+.rate-settings {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 14px;
+}
+.rate-settings summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--teal-light);
+  list-style: none;
+}
+.rate-settings summary::-webkit-details-marker { display: none; }
+.rate-settings[open] summary { margin-bottom: 12px; }
+
+/* chip de banco en la calculadora */
+.calc-bank { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+.calc-bank label { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
+.calc-bank .nice-select { flex: 1; width: auto; }
+
+/* badge del banco activo en la tarjeta USDT */
+.card-bank { color: var(--teal-light); font-weight: 600; }
 
 /* ---------- Semáforo ---------- */
 .semaforo-card {
@@ -431,6 +470,16 @@ body {
 .news-item:last-child { border-bottom: none; }
 .news-title { font-size: 14px; line-height: 1.35; }
 .news-meta { font-size: 11px; color: var(--text-dim); margin-top: 5px; }
+
+/* respeta la preferencia de movimiento reducido del sistema */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 /* tabs con scroll horizontal si no caben */
 .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
