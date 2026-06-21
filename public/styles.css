@@ -15,6 +15,10 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* el atributo [hidden] debe ocultar SIEMPRE, aunque haya un display de autor
+   (si no, .custom-range/.cards con display:flex lo ignoran y se ven igual) */
+[hidden] { display: none !important; }
+
 html, body {
   background: var(--bg);
   color: var(--text);
