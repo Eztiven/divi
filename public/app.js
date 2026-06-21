@@ -826,8 +826,6 @@ function recalc(source) {
   if (ves) rows += calcRow(`🟡 Comprar ${fmt(usd)} USDT en Binance cuesta`, usd * ves, "Bs");
   if (vesCompra) rows += calcRow(`🟢 Vender ${fmt(usd)} USDT en Binance te da`, usd * vesCompra, "Bs");
   if (ves) rows += calcRow("💰 Ahorro comprando al BCV", pct, "%");
-  const banco = BANCO ? ` (${BANK_LABELS[BANCO] || BANCO})` : "";
-  rows += `<p class="muted small">Binance${banco} — comprar: ${fmt(ves)} · vender: ${fmt(vesCompra)} Bs/USDT · BCV: ${fmt(bcv)} Bs</p>`;
   ref.innerHTML = rows;
 }
 
