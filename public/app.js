@@ -1037,6 +1037,26 @@ function setupMoneda() {
 }
 
 // ============ INIT ============
+// Pre-cargar la calculadora desde la URL: ?usd=50 abre la pestaña Calculadora con ese
+// monto en USD y calcula al instante (lo usa FlyVen para "ver este vuelo en Bs" sin que
+// el usuario escriba nada). También acepta ?bs= y ?cop=.
+function prefillCalcFromUrl() {
+  try {
+    const params = new URLSearchParams(location.search);
+    const src = params.has("usd") ? "usd" : params.has("bs") ? "bs" : params.has("cop") ? "cop" : null;
+    if (!src) return;
+    const n = Number(String(params.get(src)).replace(",", "."));
+    if (!Number.isFinite(n) || n <= 0) return;
+    const calcBtn = document.querySelector('.tab[data-tab="calc"]');
+    if (calcBtn) activateTab(calcBtn);
+    const field = src === "usd" ? "calcUsd" : src === "bs" ? "calcBs" : "calcCop";
+    const el = $(field);
+    if (el) el.value = (typeof toField === "function") ? toField(n, src === "cop" ? 0 : 2) : String(n);
+    _calcSource = src;
+    recalc(src);
+  } catch { /* parámetro inválido: ignorar */ }
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   setupTabs();
   setupRanges();
@@ -1049,6 +1069,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   $("refreshBtn").addEventListener("click", () => refresh(true));
   await refresh(false);
   renderCalc();
+  prefillCalcFromUrl();
   await loadAlerts();
 
   // contador de próxima actualización (tic cada segundo)
