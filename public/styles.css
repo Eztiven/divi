@@ -438,13 +438,19 @@ body {
   align-items: baseline;
   justify-content: space-between;
   gap: 10px;
+  flex-wrap: wrap;                /* un valor largo baja a otra línea, no desborda */
   background: var(--bg-card-2);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px 14px;
 }
-.calc-row .cr-label { font-size: 13px; color: var(--text-dim); }
-.calc-row .cr-value { font-size: 17px; font-weight: 700; }
+.calc-row .cr-label { font-size: 13px; color: var(--text-dim); flex: 1; min-width: 0; }
+.calc-row .cr-value {
+  font-size: 17px; font-weight: 700;
+  text-align: right; min-width: 0;
+  overflow-wrap: anywhere;        /* números enormes parten en vez de romper el ancho */
+  font-variant-numeric: tabular-nums;
+}
 .calc-row .cr-value small { font-size: 12px; font-weight: 500; color: var(--text-dim); margin-left: 3px; }
 
 /* ---------- Noticias ---------- */
