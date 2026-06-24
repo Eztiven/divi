@@ -841,6 +841,25 @@ function setupCalc() {
   wire("calcUsd", "usd", sanitizeNum);
   wire("calcBs", "bs", sanitizeNum);
   wire("calcCop", "cop", sanitizeCop);   // pesos: solo dígitos y punto de mil
+
+  const clearBtn = $("calcClear");
+  if (clearBtn) clearBtn.addEventListener("click", clearCalc);
+}
+
+// "Limpiar": vuelve al estado inicial — 1 dólar de referencia y "Todos los bancos".
+function clearCalc() {
+  // banco -> todos (general)
+  BANCO = "";
+  localStorage.setItem("divi-banco", "");
+  document.querySelectorAll(".banco-select").forEach((s) => { s.value = ""; });
+  // monto -> 1 dólar (lo inicial); las demás casillas se recalculan solas
+  $("calcUsd").value = "1";
+  $("calcBs").value = "";
+  $("calcCop").value = "";
+  _calcSource = "usd";
+  if (DATA) { computeEffective(); renderNumbers(); renderCharts(); }
+  recalc("usd");
+  toast("Listo: 1 dólar · todos los bancos");
 }
 
 // ============ NOTICIAS ============
