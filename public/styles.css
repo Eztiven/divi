@@ -126,6 +126,7 @@ body {
   border-radius: var(--radius);
   padding: 16px;
 }
+.chart-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .chart-head h2 { font-size: 15px; font-weight: 600; }
 .range-bar { display: flex; gap: 6px; margin: 12px 0; }
 .range-btn {
