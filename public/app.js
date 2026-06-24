@@ -841,12 +841,10 @@ function setupCalc() {
   wire("calcUsd", "usd", sanitizeNum);
   wire("calcBs", "bs", sanitizeNum);
   wire("calcCop", "cop", sanitizeCop);   // pesos: solo dígitos y punto de mil
-
-  const clearBtn = $("calcClear");
-  if (clearBtn) clearBtn.addEventListener("click", clearCalc);
 }
 
-// "Limpiar": vuelve al estado inicial — 1 dólar de referencia y "Todos los bancos".
+// "Limpiar" (botón ↺ del header): vuelve al estado inicial — 1 dólar de referencia
+// y "Todos los bancos". De paso refresca los datos (aunque ya se actualizan solos).
 function clearCalc() {
   // banco -> todos (general)
   BANCO = "";
@@ -859,6 +857,7 @@ function clearCalc() {
   _calcSource = "usd";
   if (DATA) { computeEffective(); renderNumbers(); renderCharts(); }
   recalc("usd");
+  refresh(false);   // de paso, trae datos frescos (silencioso; muestra el giro del ↺)
   toast("Listo: 1 dólar · todos los bancos");
 }
 
@@ -1085,7 +1084,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupFinde();
   setupBanco();
   $("newsRefresh").addEventListener("click", () => { loadNews(); toast("Noticias actualizadas"); });
-  $("refreshBtn").addEventListener("click", () => refresh(true));
+  $("refreshBtn").addEventListener("click", clearCalc);   // botón de header = Limpiar (los datos se refrescan solos)
   await refresh(false);
   renderCalc();
   prefillCalcFromUrl();
