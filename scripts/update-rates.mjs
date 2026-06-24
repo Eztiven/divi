@@ -74,9 +74,18 @@ function mean(nums) {
   return arr.reduce((a, b) => a + b, 0) / arr.length;
 }
 
+// Promedio de las N MEJORES ofertas. Binance ya las devuelve ordenadas por mejor
+// precio, así que las primeras son las que uno realmente toma al cambiar. Promediar
+// solo las 3 mejores acerca el valor a lo que de verdad se consigue (no al promedio
+// de 10, que queda ~0,3-0,5 Bs por debajo de la mejor).
+const TOP_N = 3;
+function meanBest(prices) {
+  return mean(prices.filter((n) => Number.isFinite(n)).slice(0, TOP_N));
+}
+
 // ---------- fuentes de datos ----------
 
-// Binance P2P: PROMEDIO de las mejores ~8 ofertas (Binance ya las ordena por mejor precio).
+// Binance P2P: PROMEDIO de las 3 mejores ofertas (Binance ya las ordena por mejor precio).
 //   tradeType "BUY"  -> a como TU compras USDT  = "venta" del dolar (lo que pagas)
 //   tradeType "SELL" -> a como TU vendes USDT   = "compra" del dolar (lo que te dan)
 //   transAmount (fiat, opcional) -> solo ofertas que aceptan ese monto, así el precio
@@ -91,7 +100,7 @@ async function binanceP2P(fiat, tradeType, transAmount = null) {
       { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }
     );
     const prices = (json?.data || []).map((d) => Number(d?.adv?.price));
-    return mean(prices);
+    return meanBest(prices);
   } catch (e) {
     console.warn(`  ! Binance P2P ${fiat}/${tradeType} fallo: ${e.message}`);
     return null;
@@ -111,7 +120,7 @@ async function binanceP2PAvgBank(fiat, tradeType, payType, transAmount = null) {
       { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }
     );
     const prices = (json?.data || []).map((d) => Number(d?.adv?.price));
-    return mean(prices);
+    return meanBest(prices);
   } catch (e) {
     console.warn(`  ! Binance P2P ${payType}/${tradeType} fallo: ${e.message}`);
     return null;
