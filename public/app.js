@@ -747,6 +747,7 @@ function setupAlerts() {
 
 // ============ CALCULADORA (casillas enlazadas) ============
 let _calcLock = false;   // evita bucles al rellenar las casillas
+const MAX_FIELD_VALUE = 99999999;   // tope por campo/resultado: más se desborda la UI
 // Acepta "554,43", "554.43" y "55.442,58" (formato venezolano con miles).
 function calcNum(s) {
   s = String(s).trim().replace(/\s/g, "");
@@ -805,11 +806,20 @@ function recalc(source) {
   else if (source === "bs") usd = bcv ? calcNum($("calcBs").value) / bcv : 0;   // Bs ↔ BCV
   else if (source === "cop") usd = cop ? copNum($("calcCop").value) / cop : 0;   // COP ↔ Binance
 
+  // Tope: ningún campo ni resultado (USD, Bs, COP) puede pasar de 99.999.999; más allá
+  // se desborda la pantalla. Como están enlazados, recortamos el monto para que TODO quepa
+  // (el peso es el número más grande, así que es el que marca el tope real).
+  const mult = Math.max(1, bcv || 0, ves || 0, vesCompra || 0, cop || 0);
+  const maxUsd = MAX_FIELD_VALUE / mult;
+  const capped = usd > maxUsd;
+  if (capped) usd = maxUsd;
+
   _calcLock = true;
-  if (source !== "usd") $("calcUsd").value = usd ? toField(usd, 2) : "";
-  if (source !== "bs")  $("calcBs").value  = (usd && bcv) ? toField(usd * bcv, 2) : "";
-  if (source !== "cop") $("calcCop").value = (usd && cop) ? fmt(usd * cop, 0) : "";   // pesos con punto de mil
+  if (capped || source !== "usd") $("calcUsd").value = usd ? toField(usd, 2) : "";
+  if (capped || source !== "bs")  $("calcBs").value  = (usd && bcv) ? toField(usd * bcv, 2) : "";
+  if (capped || source !== "cop") $("calcCop").value = (usd && cop) ? fmt(usd * cop, 0) : "";   // pesos con punto de mil
   _calcLock = false;
+  if (capped) toast("Máximo permitido: 99.999.999 (más se desborda)");
 
   const ref = $("calcRef");
   if (!usd) { ref.innerHTML = '<p class="muted small">Escribe un monto arriba 👆</p>'; return; }
