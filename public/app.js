@@ -210,9 +210,9 @@ function renderNumbers() {
       $("ahorroDetalle").textContent =
         `${a.bcvLabel} ${fmt(pBcv)} · ${a.mktLabel} ${fmt(pMkt)} → ahorras Bs ${fmt(pMkt - pBcv)}`;
     }
-    $("bcvValue").textContent = fmt(last.bcv);
-    $("vesVentaValue").textContent = fmt(last.ves_venta);
-    $("vesCompraValue").textContent = fmt(last.ves_compra);
+    $("bcvValue").textContent = fmt(last.bcv);                       // BCV exacto
+    $("vesVentaValue").textContent = "≈ " + fmt(last.ves_venta);     // Binance: aproximado
+    $("vesCompraValue").textContent = "≈ " + fmt(last.ves_compra);   // Binance: aproximado
     // badge del banco activo en la tarjeta USDT (BANK_LABELS es constante confiable)
     const cn = $("usdtCardName");
     if (cn) cn.innerHTML = BANCO
@@ -223,9 +223,9 @@ function renderNumbers() {
   const bn = $("bancoNote");
   if (bn) {
     if (!BANCO) {
-      bn.textContent = "Mostrando el precio general (todos los bancos).";
+      bn.textContent = "Precio general de Binance (≈ aprox., cambia minuto a minuto). El BCV es exacto.";
     } else if (last.bk && last.bk[BANCO]) {
-      bn.textContent = `Promedio de ${BANK_LABELS[BANCO] || BANCO} en Binance (venta y compra).`;
+      bn.textContent = `Promedio de ${BANK_LABELS[BANCO] || BANCO} en Binance (≈ aprox., cambia minuto a minuto).`;
     } else {
       bn.textContent = `Aún no hay datos de ${BANK_LABELS[BANCO] || BANCO}; mostrando el precio general por ahora.`;
     }
@@ -790,9 +790,9 @@ function cursorAlFinal(el) {
     const v = el.value; try { el.setSelectionRange(v.length, v.length); } catch (_) {}
   }, 0));
 }
-const calcRow = (label, value, unit, frac = 2) =>
+const calcRow = (label, value, unit, frac = 2, approx = false) =>
   `<div class="calc-row"><span class="cr-label">${label}</span>` +
-  `<span class="cr-value">${fmt(value, frac)}<small>${unit}</small></span></div>`;
+  `<span class="cr-value">${approx ? "≈ " : ""}${fmt(value, frac)}<small>${unit}</small></span></div>`;
 
 // source = "usd" | "bs" | "cop": casilla que el usuario editó (no se reescribe).
 // La casilla de bolívares usa la tasa BCV (es el valor oficial del dólar).
@@ -822,10 +822,11 @@ function recalc(source) {
   const pct = ves ? ((ves - bcv) / ves) * 100 : 0;
 
   let rows = "";
-  if (ves) rows += calcRow(`🔄 Esos ${fmt(bsBcv)} Bs en Binance`, usdtEnBinance, "USDT");
-  if (ves) rows += calcRow(`🟡 Comprar ${fmt(usd)} USDT en Binance cuesta`, usd * ves, "Bs");
-  if (vesCompra) rows += calcRow(`🟢 Vender ${fmt(usd)} USDT en Binance te da`, usd * vesCompra, "Bs");
+  if (ves) rows += calcRow(`🔄 Esos ${fmt(bsBcv)} Bs en Binance`, usdtEnBinance, "USDT", 2, true);
+  if (ves) rows += calcRow(`🟡 Comprar ${fmt(usd)} USDT en Binance cuesta`, usd * ves, "Bs", 2, true);
+  if (vesCompra) rows += calcRow(`🟢 Vender ${fmt(usd)} USDT en Binance te da`, usd * vesCompra, "Bs", 2, true);
   if (ves) rows += calcRow("💰 Ahorro comprando al BCV", pct, "%");
+  rows += '<p class="muted small">ℹ️ Los precios de Binance son aproximados — cambian minuto a minuto. El BCV es exacto.</p>';
   ref.innerHTML = rows;
 }
 
