@@ -56,8 +56,9 @@ body {
   transition: transform .2s, background .2s;
 }
 .icon-btn:active { transform: scale(.92); }
-.icon-btn.spin { animation: spin .8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
+/* "Limpiar": una sola vuelta rápida del ↺ como feedback (no un giro de carga) */
+.icon-btn.spin-once { animation: spin-once .45s ease; }
+@keyframes spin-once { from { transform: rotate(0); } to { transform: rotate(-360deg); } }
 
 /* ---------- Tabs ---------- */
 .tabs {

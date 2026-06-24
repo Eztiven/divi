@@ -637,8 +637,6 @@ let _refreshing = false;   // evita cargas solapadas (polling + manual + visibil
 async function refresh(showToast = true) {
   if (_refreshing) return;
   _refreshing = true;
-  const btn = $("refreshBtn");
-  btn.classList.add("spin");
   try {
     const ok = await loadData();
     if (ok) {
@@ -647,11 +645,10 @@ async function refresh(showToast = true) {
       renderCharts();
       renderCalc();        // la calculadora también usa la tasa nueva
       if (showToast) toast("Datos actualizados");
-    } else {
-      toast("No se pudieron cargar los datos");
+    } else if (showToast) {
+      toast("No se pudieron cargar los datos");   // los refrescos automáticos fallan en silencio
     }
   } finally {
-    btn.classList.remove("spin");
     _refreshing = false;
   }
 }
@@ -858,7 +855,10 @@ function clearCalc() {
   _calcSource = "usd";
   if (DATA) { computeEffective(); renderNumbers(); renderCharts(); }
   recalc("usd");
-  refresh(false);   // de paso, trae datos frescos (silencioso; muestra el giro del ↺)
+  // feedback: una sola vuelta rápida del ↺ (no el giro infinito de carga). Los datos
+  // ya se refrescan solos, así que limpiar es instantáneo (sin esperar a la red).
+  const btn = $("refreshBtn");
+  if (btn) { btn.classList.remove("spin-once"); void btn.offsetWidth; btn.classList.add("spin-once"); }
   toast("Listo: 1 dólar · todos los bancos");
 }
 
